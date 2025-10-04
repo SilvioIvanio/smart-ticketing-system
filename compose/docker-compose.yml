@@ -1,0 +1,118 @@
+version: "3.9"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports: ["2181:2181"]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on: [zookeeper]
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on: [kafka]
+    ports: ["8085:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+  mongo:
+    image: mongo:7
+    ports: ["27017:27017"]
+    environment:
+      MONGO_INITDB_DATABASE: smart_tickets
+    volumes:
+      - mongo-data:/data/db
+
+  mongo-express:
+    image: mongo-express:latest
+    depends_on: [mongo]
+    ports: ["8081:8081"]
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+
+  init-topics:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on: [kafka]
+    entrypoint: ["/bin/bash","-c"]
+    command: >
+      "sleep 10 &&
+       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic ticket.requests --partitions 3 --replication-factor 1 &&
+       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic payments.processed --partitions 3 --replication-factor 1 &&
+       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic ticket.validated --partitions 3 --replication-factor 1 &&
+       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic schedule.updates --partitions 3 --replication-factor 1"
+
+  ticketing:
+    build: ./services/ticketing
+    depends_on: [kafka, mongo, init-topics]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: smart_tickets
+      TICKET_REQ_TOPIC: ticket.requests
+      PAYMENTS_PROCESSED_TOPIC: payments.processed
+      TICKET_VALIDATED_TOPIC: ticket.validated
+    ports: ["8090:8090"]
+
+  payment:
+    build: ./services/payment
+    depends_on: [kafka, mongo, init-topics]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: smart_tickets
+      TICKET_REQ_TOPIC: ticket.requests
+      PAYMENTS_PROCESSED_TOPIC: payments.processed
+
+  notification:
+    build: ./services/notification
+    depends_on: [kafka, mongo, init-topics]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: smart_tickets
+      TICKET_VALIDATED_TOPIC: ticket.validated
+      SCHEDULE_UPDATES_TOPIC: schedule.updates
+    ports: ["8092:8090"]
+
+  transport:
+    build: ./services/transport
+    depends_on: [kafka, mongo]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: smart_tickets
+      SCHEDULE_UPDATES_TOPIC: schedule.updates
+    ports: ["8093:8090"]
+
+  admin:
+    build: ./services/admin
+    depends_on: [kafka, mongo]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: smart_tickets
+      SCHEDULE_UPDATES_TOPIC: schedule.updates
+    ports: ["8094:8090"]
+
+  passenger:
+    build: ./services/passenger
+    depends_on: [mongo]
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: smart_tickets
+    ports: ["8095:8090"]
+
+volumes:
+  mongo-data:
