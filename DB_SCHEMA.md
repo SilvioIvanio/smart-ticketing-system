@@ -1,55 +1,62 @@
-# Smart Public Transport Ticketing System - Database Schema(MongoDB collections schema)
+# Smart Public Transport Ticketing System - Database Schema
 
-# Users Collection, tickets collection and routes collection
+This document defines the official MongoDB collections and document schemas. All services that interact with the database **MUST** adhere to these structures.
 
-```json
-{
-  "userId": "string",
-  "name": "string",
-  "email": "string",
-  "passwordHash": "string",
-  "role": "PASSENGER | ADMIN | VALIDATOR",
-  "phone": "string",
-  "createdAt": "ISODate"
-}
+- **Database Name:** `ticketing_db`
 
-{
-  "ticketId": "string",
-  "userId": "string",
-  "tripId": "string",
-  "routeId": "string",
-  "status": "CREATED | PAID | VALIDATED | EXPIRED",
-  "ticketType": "SINGLE_RIDE | MULTIPLE_RIDE | DAY_PASS | WEEKLY_PASS",
-  "price": "decimal",
-  "purchaseDate": "ISODate",
-  "expiryDate": "ISODate",
-  "paymentId": "string"
-}
+---
 
-{
-  "routeId": "string",
-  "name": "string",
-  "transportType": "BUS | TRAIN",
-  "destination": "string",
-  "stops": [
+### 1. `users` collection
+
+*   **Purpose:** Stores passenger and administrator account information.
+*   **Managed by:** `passenger-service` (for creation), other services may read.
+*   **Schema:**
+    ```json
     {
-      "stopId": "string",
+      "_id": "string (The user's unique ID, can be an email or a UUID)",
       "name": "string",
-      "sequence": "integer"
+      "email": "string",
+      "passwordHash": "string"
     }
-  ],
-  "trips": [
+    ```
+
+---
+
+### 2. `tickets` collection
+
+*   **Purpose:** Stores the state and lifecycle of every ticket purchased.
+*   **Managed by:** `ticketing-service`
+*   **Schema:**
+    ```json
     {
-      "tripId": "string",
-      "departureTime": "ISODate",
-      "arrivalTime": "ISODate",
-      "vehicleId": "string",
-      "driverId": "string",
-      "availableSeats": "integer",
-      "status": "SCHEDULED | ACTIVE | COMPLETED | CANCELLED"
+      "_id": "string (A unique UUID for the ticket)",
+      "userId": "string (References the _id in the users collection)",
+      "tripId": "string (Identifies the specific trip this ticket is for)",
+      "status": "CREATED | PAID | VALIDATED | EXPIRED",
+      "purchaseDate": "string (ISO 8601 format, e.g., '2025-10-04T10:00:00Z')"
     }
-  ],
-  "active": "boolean",
-  "createdBy": "string",
-  "createdAt": "ISODate"
-}
+    ```
+    *Note: The `status` field must be one of the four specified string values.*
+
+---
+
+### 3. `routes` collection
+
+*   **Purpose:** Stores all transport routes and their scheduled trips.
+*   **Managed by:** `transport-service` and `admin-service`.
+*   **Schema:**
+    ```json
+    {
+      "_id": "string (A unique UUID for the route)",
+      "name": "string (e.g., 'Windhoek-Katutura Circle')",
+      "transportType": "BUS | TRAIN",
+      "trips": [
+        {
+          "tripId": "string (A unique UUID for this specific trip)",
+          "departureTime": "string (e.g., '08:30')",
+          "vehicleId": "string (e.g., 'BUS-101')"
+        }
+      ]
+    }
+    ```
+    *Note: The `trips` field is an array of trip objects embedded within the route document.*
