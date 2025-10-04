@@ -1,4 +1,6 @@
-#Kafka Contract - Smart Public Transport Ticket System
+# Kafka Communication Contract - Smart Public Transport Ticket System
+
+This document defines the official topics and message schemas for the Smart Ticketing System. All services MUST adhere to these contracts.
 
 <!-- ticket.requests: -->
 {"userId":"string",
@@ -20,7 +22,7 @@
 }
 
 <!-- schedule.events: -->
- { "eventType": "TRIP_DELAYED" | "TRIP_CANCELLED", 
-"tripId": "string", 
-"details": "string" 
+{"eventType": "TRIP_DELAYED" | "TRIP_CANCELLED", 
+ "tripId": "string", 
+ "details": "string" 
 }
