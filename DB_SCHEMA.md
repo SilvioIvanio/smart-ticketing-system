@@ -4,7 +4,7 @@
 
 ```json
 {
-  "user_id": "string",
+  "userId": "string",
   "name": "string",
   "email": "string",
   "passwordHash": "string",
@@ -14,7 +14,7 @@
 }
 
 {
-  "ticket_id": "string",
+  "ticketId": "string",
   "userId": "string",
   "tripId": "string",
   "routeId": "string",
@@ -27,7 +27,7 @@
 }
 
 {
-  "route_id": "string",
+  "routeId": "string",
   "name": "string",
   "transportType": "BUS | TRAIN",
   "destination": "string",
