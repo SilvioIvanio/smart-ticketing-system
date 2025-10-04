@@ -35,9 +35,7 @@
     {
       "stopId": "string",
       "name": "string",
-      "sequence": "integer",
-      "latitude": "decimal",
-      "longitude": "decimal"
+      "sequence": "integer"
     }
   ],
   "trips": [
