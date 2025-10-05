@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Zookeeper - Required for Kafka
+  # Zookeeper for Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -65,7 +65,9 @@ services:
 
   # Passenger Service
   passenger-service:
-    build: ./services/passenger-service/passenger_service
+    build:
+      context: ./services/passenger-service/passenger_service
+      dockerfile: Dockerfile
     container_name: passenger-service
     ports:
       - "9090:9090"
@@ -81,7 +83,9 @@ services:
 
   # Ticketing Service
   ticketing-service:
-    build: ./services/ticketing-service/ticketing_service
+    build:
+      context: ./services/ticketing-service/ticketing_service
+      dockerfile: Dockerfile
     container_name: ticketing-service
     ports:
       - "9091:9091"
@@ -100,7 +104,9 @@ services:
 
   # Payment Service
   payment-service:
-    build: ./services/payment-service/payment_service
+    build:
+      context: ./services/payment-service/payment_service
+      dockerfile: Dockerfile
     container_name: payment-service
     depends_on:
       kafka:
@@ -117,7 +123,9 @@ services:
 
   # Transport Service
   transport-service:
-    build: ./services/transport-service/transport_service
+    build:
+      context: ./services/transport-service/transport_service
+      dockerfile: Dockerfile
     container_name: transport-service
     ports:
       - "9092:9092"
@@ -136,7 +144,9 @@ services:
 
   # Notification Service
   notification-service:
-    build: ./services/notification-service/notification_service
+    build:
+      context: ./services/notification-service/notification_service
+      dockerfile: Dockerfile
     container_name: notification-service
     depends_on:
       kafka:
@@ -149,7 +159,9 @@ services:
 
   # Admin Service
   admin-service:
-    build: ./services/admin-service/admin_service
+    build:
+      context: ./services/admin-service/admin_service
+      dockerfile: Dockerfile
     container_name: admin-service
     ports:
       - "9093:9093"
