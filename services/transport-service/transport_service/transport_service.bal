@@ -30,14 +30,15 @@ service /transport on new http:Listener(9092) {
 
         string routeId = uuid:createType1AsString();
 
-        // FIX: Use proper json field access or convert the entire object
+        // FIX: Properly convert JSON fields to their types
+        string[] stopsArray = check (check routeData.stops).cloneWithType();
         json scheduleJson = check routeData.schedule;
         
         Route newRoute = {
             routeId: routeId,
             name: check routeData.name,
             routeType: check routeData.routeType,
-            stops: check routeData.stops.fromJsonWithType(),
+            stops: stopsArray,
             schedule: scheduleJson,
             active: true,
             createdAt: time:utcNow()
