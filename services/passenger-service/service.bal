@@ -4,7 +4,7 @@ import ballerina/crypto;
 import ballerina/time;
 import ballerina/log;
 
-// MongoDB imports - you'll need to add these dependencies
+// MongoDB imports
 import ballerinax/mongodb;
 
 // Configuration values (from Config.toml)
