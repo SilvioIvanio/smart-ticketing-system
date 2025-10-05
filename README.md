@@ -36,6 +36,8 @@ docker-compose up -d
 ```
 
 
+
+
 ### 2. Wait for Services (30 seconds)
 
 ```powershell
@@ -134,7 +136,7 @@ exit
 docker exec -it kafka kafka-console-consumer `
   --bootstrap-server localhost:9092 `
   --topic ticket.requests `
-  --from-beginning
+  --from-beginning .....
 
 # View payment confirmations
 docker exec -it kafka kafka-console-consumer `
@@ -227,3 +229,4 @@ docker-compose up -d
 - **MongoDB** - NoSQL database
 - **Docker** - Containerization
 - **Docker Compose** - Orchestration
+- ** Docker component
