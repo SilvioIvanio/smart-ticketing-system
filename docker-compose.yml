@@ -97,7 +97,7 @@ services:
       - ./services/transport-service/transport_service/target/bin:/app
       - ./services/transport-service/transport_service/Config.toml:/app/Config.toml
     ports:
-      - "9092:9092"
+      - "9094:9092"
     command: java -jar transport_service.jar
     depends_on:
       - kafka
