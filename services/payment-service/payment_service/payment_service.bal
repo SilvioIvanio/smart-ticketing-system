@@ -27,14 +27,18 @@ listener kafka:Listener ticketListener = check new (kafkaBootstrap, {
 
 service kafka:Service on ticketListener {
 
+    // FIX 1: Use BytesConsumerRecord instead of ConsumerRecord
     remote function onConsumerRecord(kafka:Caller caller,
-                                     kafka:ConsumerRecord[] records) returns error? {
+                                     kafka:BytesConsumerRecord[] records) returns error? {
 
         mongodb:Database db = check mongoClient->getDatabase(dbName);
         mongodb:Collection payments = check db->getCollection("payments");
 
-        foreach var record in records {
-            json payload = check string:fromBytes(record.value).fromJsonString();
+        // FIX 2: Change 'record' to 'rec' (record is a reserved keyword)
+        foreach var rec in records {
+            // FIX 3: Split the conversion into two steps
+            string payloadStr = check string:fromBytes(rec.value);
+            json payload = check payloadStr.fromJsonString();
 
             string ticketId = check payload.ticketId;
             string userId = check payload.userId;
@@ -65,8 +69,8 @@ service kafka:Service on ticketListener {
             boolean success = simulatePayment();
             string finalStatus = success ? "SUCCESS" : "FAILED";
 
-            // Update payment
-            check payments->updateOne(
+            // FIX 4: Assign result to _ to ignore it
+            _ = check payments->updateOne(
                 {paymentId: paymentId},
                 {
                     "$set": {
