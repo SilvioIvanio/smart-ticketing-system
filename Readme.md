@@ -43,7 +43,7 @@ docker-compose up -d
 ```powershell
 Start-Sleep -Seconds 30
 
-```
+.......................................
 
 ### 3. Run Demo
 
