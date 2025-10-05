@@ -227,3 +227,4 @@ docker-compose up -d
 - **MongoDB** - NoSQL database
 - **Docker** - Containerization
 - **Docker Compose** - Orchestration
+- ** Docker component
