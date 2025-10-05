@@ -116,12 +116,16 @@ service /ticketing on new http:Listener(9091) {
         time:Utc now = time:utcNow();
         decimal diff = time:utcDiffSeconds(ticket.validUntil, now);
 
-        if diff < 0 {
+        // FIX 1: Compare decimal with decimal (0.0d or 0d)
+        if diff < 0d {
             log:printWarn("Ticket expired: " + validation.ticketId);
-            check tickets->updateOne(
+            
+            // FIX 2: Assign the result to _ to ignore it
+            _ = check tickets->updateOne(
                 {ticketId: validation.ticketId},
                 {"$set": {"status": "EXPIRED", "updatedAt": now}}
             );
+            
             return {
                 "error": "Ticket has expired",
                 "expiredAt": ticket.validUntil
@@ -141,7 +145,8 @@ service /ticketing on new http:Listener(9091) {
         int newRemaining = remaining - 1;
         string newStatus = newRemaining > 0 ? "VALIDATED" : "EXPIRED";
 
-        check tickets->updateOne(
+        // FIX 3: Assign the result to _ to ignore it
+        _ = check tickets->updateOne(
             {ticketId: validation.ticketId},
             {
                 "$set": {
@@ -196,15 +201,17 @@ listener kafka:Listener paymentListener = check new (kafkaBootstrap, {
 
 service kafka:Service on paymentListener {
 
+    // FIX 4: Add kafka: prefix to ConsumerRecord
     remote function onConsumerRecord(kafka:Caller caller,
                                      kafka:ConsumerRecord[] records) returns error? {
 
         mongodb:Database db = check mongoClient->getDatabase(dbName);
         mongodb:Collection tickets = check db->getCollection("tickets");
 
-        foreach var record in records {
+        // FIX 5: Changed 'record' to 'rec' (record is a reserved keyword)
+        foreach var rec in records {
             // Parse the payment message
-            json payload = check string:fromBytes(record.value).fromJsonString();
+            json payload = check string:fromBytes(rec.value).fromJsonString();
 
             string ticketId = check payload.ticketId;
             string status = check payload.status;
@@ -212,8 +219,8 @@ service kafka:Service on paymentListener {
             log:printInfo("Received payment notification for ticket: " + ticketId);
 
             if status == "SUCCESS" {
-                // Update ticket status to PAID
-                check tickets->updateOne(
+                // FIX 6: Assign the result to _ to ignore it
+                _ = check tickets->updateOne(
                     {ticketId: ticketId},
                     {"$set": {"status": "PAID", "updatedAt": time:utcNow()}}
                 );
