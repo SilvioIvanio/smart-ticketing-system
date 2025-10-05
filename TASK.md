@@ -2,7 +2,7 @@
 
 ## **Overview & Learning Objectives**
 
-This assignment asks you to design and implement a distributed **smart public-transport ticketing system (buses & trains).** The goal is to practise real-world distributed systems skills: microservices architecture, event-driven communication using Kafka, persistent storage (MongoDB), containerisation, and orchestration (Docker Compose or Kubernetes).
+This assignment asks you to design and implement a distributed **smart public-transport ticketing system (buses & trains).** The goal is to practise real-world distributed systems skills: microservices architecture, event-driven communication using Kafka, persistent storage (MongoDB), containerisation, and orchestration (Docker Compose).
 
 By the end of the assignment, students should be able to:
 
@@ -35,7 +35,7 @@ From the **system perspective**, the solution must be **scalable and fault-toler
 
 All important data — such as users, trips, tickets, and payments — must be stored in a persistent data store (MongoDB). 
 
-Each component should be deployed as a **microservice**, running inside Docker containers, and orchestrated with Docker Compose or Kubernetes to simulate a production-like environment.
+Each component should be deployed as a **microservice**, running inside Docker containers, and orchestrated with Docker Compose to simulate a production-like environment.
 
 ## **Required Services**
 
@@ -56,7 +56,7 @@ Each component should be deployed as a **microservice**, running inside Docker c
 - **Ballerina** for all service implementations.
 - **Kafka** topics (e.g., ticket.requests, payments.processed, schedule.updates).
 - **MongoDB** for persistence.
-- **Docker** for containerisation and **Docker Compose/Kubernetes** for orchestration.
+- **Docker** for containerisation and **Docker Compose** for orchestration.
 
 ## **Evaluation Criteria**
 
