@@ -12,12 +12,16 @@ listener kafka:Listener notificationListener = check new (kafkaBootstrap, {
 
 service kafka:Service on notificationListener {
 
+    // FIX 1: Use BytesConsumerRecord instead of ConsumerRecord
     remote function onConsumerRecord(kafka:Caller caller,
-                                     kafka:ConsumerRecord[] records) returns error? {
+                                     kafka:BytesConsumerRecord[] records) returns error? {
 
-        foreach var record in records {
-            json payload = check string:fromBytes(record.value).fromJsonString();
-            string topic = record.topic;
+        // FIX 2: Change 'record' to 'rec' (record is a reserved keyword)
+        foreach var rec in records {
+            // FIX 3: Split string conversion into two steps
+            string payloadStr = check string:fromBytes(rec.value);
+            json payload = check payloadStr.fromJsonString();
+            string topic = rec.topic;
 
             // Route to appropriate notification handler
             match topic {
@@ -43,7 +47,7 @@ function sendScheduleNotification(json data) returns error? {
     string message = string `🚌 Trip ${tripId} is now ${status}`;
 
     log:printInfo("NOTIFICATION: " + message);
-    io:println("\\n" + message + "\\n");
+    io:println("\n" + message + "\n");
 }
 
 // Send ticket validation notification
@@ -53,7 +57,7 @@ function sendValidationNotification(json data) returns error? {
     string message = string `✅ Ticket ${ticketId} validated successfully`;
 
     log:printInfo("NOTIFICATION: " + message);
-    io:println("\\n" + message + "\\n");
+    io:println("\n" + message + "\n");
 }
 
 // Send payment notification
@@ -65,5 +69,5 @@ function sendPaymentNotification(json data) returns error? {
     string message = string `${emoji} Payment for ticket ${ticketId}: ${status}`;
 
     log:printInfo("NOTIFICATION: " + message);
-    io:println("\\n" + message + "\\n");
+    io:println("\n" + message + "\n");
 }
