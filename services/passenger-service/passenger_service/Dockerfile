@@ -1,17 +1,12 @@
-# Use official Ballerina image as base
-FROM ballerina/ballerina:2201.8.5
+FROM ballerina/jre11:v1
 
-# Set working directory
-WORKDIR /app
+WORKDIR /home/ballerina
 
-# Copy all project files
-COPY . .
-
-# Build the Ballerina project
-RUN bal build
+# Copy the built JAR file
+COPY target/bin/*.jar ./
 
 # Expose the service port
 EXPOSE 9090
 
-# Run the service when container starts
-CMD bal run
+# Run the JAR file
+CMD java -jar *.jar

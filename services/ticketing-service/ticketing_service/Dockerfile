@@ -1,6 +1,12 @@
-FROM ballerina/ballerina:2201.8.5
-WORKDIR /app
-COPY . .
-RUN bal build
-EXPOSE 9091
-CMD bal run
+FROM ballerina/jre11:v1
+
+WORKDIR /home/ballerina
+
+# Copy the built JAR file
+COPY target/bin/*.jar ./
+
+# Expose the service port
+EXPOSE 9090
+
+# Run the JAR file
+CMD java -jar *.jar
