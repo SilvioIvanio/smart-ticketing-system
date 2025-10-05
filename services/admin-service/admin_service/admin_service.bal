@@ -16,6 +16,18 @@ kafka:Producer kafkaProducer = check new (kafkaBootstrap, {
     clientId: "admin-producer"
 });
 
+// Define Payment record type
+type Payment record {|
+    string paymentId;
+    string ticketId;
+    string userId;
+    decimal amount;
+    string status;
+    string paymentMethod;
+    time:Utc createdAt;
+    time:Utc? processedAt;
+|};
+
 service /admin on new http:Listener(9093) {
 
     // Get sales report
@@ -33,14 +45,13 @@ service /admin on new http:Listener(9093) {
         // Count successful payments
         int successfulPayments = check payments->countDocuments({status: "SUCCESS"});
 
-        // Calculate total revenue
-        stream<json, error?> paymentStream = check payments->find({status: "SUCCESS"});
-        decimal totalRevenue = 0.0;
+        // Calculate total revenue using Payment record type
+        stream<Payment, error?> paymentStream = check payments->find({status: "SUCCESS"});
+        decimal totalRevenue = 0.0d;
 
-        check from json payment in paymentStream
+        check from Payment payment in paymentStream
             do {
-                decimal amount = check payment.amount;
-                totalRevenue += amount;
+                totalRevenue += payment.amount;
             };
 
         log:printInfo("Sales report generated");
