@@ -4,37 +4,53 @@ import ballerinax/kafka;
 
 configurable string kafkaBootstrap = ?;
 
-// Listen to multiple topics
-listener kafka:Listener notificationListener = check new (kafkaBootstrap, {
+// Separate listener for schedule updates
+listener kafka:Listener scheduleListener = check new (kafkaBootstrap, {
     groupId: "notification-service-group",
-    topics: ["schedule.updates", "ticket.validated", "payments.processed"]
+    topics: ["schedule.updates"]
 });
 
-service kafka:Service on notificationListener {
+// Separate listener for ticket validations
+listener kafka:Listener validationListener = check new (kafkaBootstrap, {
+    groupId: "notification-service-group",
+    topics: ["ticket.validated"]
+});
 
-    // FIX 1: Use BytesConsumerRecord instead of ConsumerRecord
+// Separate listener for payments
+listener kafka:Listener paymentListener = check new (kafkaBootstrap, {
+    groupId: "notification-service-group",
+    topics: ["payments.processed"]
+});
+
+// Service for schedule updates
+service kafka:Service on scheduleListener {
     remote function onConsumerRecord(kafka:Caller caller,
-                                     kafka:BytesConsumerRecord[] records) returns error? {
-
-        // FIX 2: Change 'record' to 'rec' (record is a reserved keyword)
+                                     kafka:AnydataConsumerRecord[] records) returns error? {
         foreach var rec in records {
-            // FIX 3: Split string conversion into two steps
-            string payloadStr = check string:fromBytes(rec.value);
-            json payload = check payloadStr.fromJsonString();
-            string topic = rec.topic;
+            json payload = check rec.value.ensureType();
+            check sendScheduleNotification(payload);
+        }
+    }
+}
 
-            // Route to appropriate notification handler
-            match topic {
-                "schedule.updates" => {
-                    check sendScheduleNotification(payload);
-                }
-                "ticket.validated" => {
-                    check sendValidationNotification(payload);
-                }
-                "payments.processed" => {
-                    check sendPaymentNotification(payload);
-                }
-            }
+// Service for ticket validations
+service kafka:Service on validationListener {
+    remote function onConsumerRecord(kafka:Caller caller,
+                                     kafka:AnydataConsumerRecord[] records) returns error? {
+        foreach var rec in records {
+            json payload = check rec.value.ensureType();
+            check sendValidationNotification(payload);
+        }
+    }
+}
+
+// Service for payments
+service kafka:Service on paymentListener {
+    remote function onConsumerRecord(kafka:Caller caller,
+                                     kafka:AnydataConsumerRecord[] records) returns error? {
+        foreach var rec in records {
+            json payload = check rec.value.ensureType();
+            check sendPaymentNotification(payload);
         }
     }
 }
