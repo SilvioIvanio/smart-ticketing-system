@@ -47,7 +47,6 @@ services:
     working_dir: /app
     volumes:
       - ./services/passenger-service/passenger_service/target/bin:/app
-      - ./services/passenger-service/passenger_service/Config.toml:/app/Config.toml
     ports:
       - "9090:9090"
     command: java -jar passenger_service.jar
@@ -63,7 +62,6 @@ services:
     working_dir: /app
     volumes:
       - ./services/ticketing-service/ticketing_service/target/bin:/app
-      - ./services/ticketing-service/ticketing_service/Config.toml:/app/Config.toml
     ports:
       - "9091:9091"
     command: java -jar ticketing_service.jar
@@ -80,7 +78,6 @@ services:
     working_dir: /app
     volumes:
       - ./services/payment-service/payment_service/target/bin:/app
-      - ./services/payment-service/payment_service/Config.toml:/app/Config.toml
     command: java -jar payment_service.jar
     depends_on:
       - kafka
@@ -95,7 +92,6 @@ services:
     working_dir: /app
     volumes:
       - ./services/transport-service/transport_service/target/bin:/app
-      - ./services/transport-service/transport_service/Config.toml:/app/Config.toml
     ports:
       - "9094:9092"
     command: java -jar transport_service.jar
@@ -112,7 +108,6 @@ services:
     working_dir: /app
     volumes:
       - ./services/notification-service/notification_service/target/bin:/app
-      - ./services/notification-service/notification_service/Config.toml:/app/Config.toml
     command: java -jar notification_service.jar
     depends_on:
       - kafka
@@ -126,9 +121,7 @@ services:
     working_dir: /app
     volumes:
       - ./services/admin-service/admin_service/target/bin:/app
-      - ./services/admin-service/admin_service/Config.toml:/app/Config.toml
     ports:
-    
       - "9093:9093"
     command: java -jar admin_service.jar
     depends_on:
@@ -144,4 +137,3 @@ networks:
 
 volumes:
   mongodb-data:
-  
