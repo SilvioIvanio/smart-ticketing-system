@@ -186,10 +186,11 @@ function handleBuyTicket(string userId) returns error? {
     io:println("╚════════════════════════════════════════════╝");
     
     io:println("\n⏳ Fetching available trips...");
-    Trip[]|error availableTrips = fetchAvailableTrips();
+    TripInfo[]|error availableTrips = fetchAvailableTrips();
 
     if availableTrips is error {
         io:println(string`❌ Error fetching trips: ${availableTrips.message()}`);
+        io:println("💡 Detailed error: " + availableTrips.toString());
         return;
     }
 
@@ -198,19 +199,25 @@ function handleBuyTicket(string userId) returns error? {
         return;
     }
 
-    io:println("\nAvailable Trips:");
+    io:println("\n✅ Available Trips:");
+    io:println("═══════════════════════════════════════════════════════════");
     foreach int i in 0..<availableTrips.length() {
-        Trip t = availableTrips[i];
-        io:println(string`  [${i + 1}] Route: ${t.routeName}, Vehicle: ${t.vehicleId}, Departure: ${t.departureTime}, Arrival: ${t.arrivalTime}, Trip ID: ${t.tripId}`);
+        TripInfo t = availableTrips[i];
+        io:println(string`  [${i + 1}] ${t.routeName}`);
+        io:println(string`      Vehicle: ${t.vehicleId}`);
+        io:println(string`      Departure: ${t.departureTime}`);
+        io:println(string`      Arrival: ${t.arrivalTime}`);
+        io:println(string`      Trip ID: ${t.tripId}`);
+        io:println("─────────────────────────────────────────────────────────");
     }
 
-    io:print("\nEnter the number of the trip you want to purchase a ticket for: ");
+    io:print("\n👉 Enter the number of the trip: ");
     string? tripChoiceStr = io:readln();
 
     if tripChoiceStr is string {
         int|error tripIndex = int:fromString(tripChoiceStr);
         if tripIndex is int && tripIndex > 0 && tripIndex <= availableTrips.length() {
-            Trip selectedTrip = availableTrips[tripIndex - 1];
+            TripInfo selectedTrip = availableTrips[tripIndex - 1];
             string tripId = selectedTrip.tripId;
 
             io:print("Enter Ticket Type (single/daily/weekly): ");
@@ -273,7 +280,6 @@ function handleBuyTicket(string userId) returns error? {
     } else {
         io:println("❌ Invalid input.");
     }
-    return;
 }
 
 function handleViewTickets(string userId) returns error? {
@@ -311,63 +317,74 @@ function handleViewTickets(string userId) returns error? {
     }
 }
 
-// Define record types for Route and Trip
-type Route record {
-    string routeId;
-    string name;
-    string routeType;
-    string[] stops;
-    json schedule;
-    boolean active;
-    string createdAt;
-};
-
-type Trip record {
+// Simplified record type for displaying trip information
+type TripInfo record {
     string tripId;
-    string routeId;
     string routeName;
     string departureTime;
     string arrivalTime;
-    string status;
     string vehicleId;
-    string createdAt;
 };
 
-function fetchAvailableTrips() returns Trip[]|error {
-    io:println("\n⏳ Fetching routes...");
+function fetchAvailableTrips() returns TripInfo[]|error {
+    io:println("⏳ Fetching routes...");
     http:Response|error routesResponse = transportService->get("/transport/routes");
 
     if routesResponse is http:Response {
         if routesResponse.statusCode == 200 {
             json|error routesJson = routesResponse.getJsonPayload();
-            if routesJson is json && routesJson is json[] {
-                Route[] allRoutes = check routesJson.cloneWithType();
-                Trip[] allTrips = [];
+            if routesJson is json {
+                // Debug: print the actual response
+                io:println("📝 Routes response: " + routesJson.toJsonString());
+                
+                if routesJson is json[] {
+                    TripInfo[] allTrips = [];
 
-                foreach Route r in allRoutes {
-                    io:println(string`⏳ Fetching trips for route: ${r.name} (${r.routeId})...`);
-                    http:Response|error tripsResponse = transportService->get(string`/transport/trips/route/${r.routeId}`);
-                    if tripsResponse is http:Response {
-                        if tripsResponse.statusCode == 200 {
-                            json|error tripsJson = tripsResponse.getJsonPayload();
-                            if tripsJson is json && tripsJson is json[] {
-                                Trip[] routeTrips = check tripsJson.cloneWithType();
-                                foreach Trip t in routeTrips {
-                                    Trip updatedTrip = t;
-                                    updatedTrip.routeName = r.name;
-                                    allTrips.push(updatedTrip);
+                    foreach json routeJson in routesJson {
+                        string routeId = check routeJson.routeId.ensureType();
+                        string routeName = check routeJson.name.ensureType();
+                        
+                        io:println(string`⏳ Fetching trips for route: ${routeName} (${routeId})...`);
+                        http:Response|error tripsResponse = transportService->get(string`/transport/trips/route/${routeId}`);
+                        
+                        if tripsResponse is http:Response {
+                            if tripsResponse.statusCode == 200 {
+                                json|error tripsJson = tripsResponse.getJsonPayload();
+                                if tripsJson is json {
+                                    // Debug: print the actual response
+                                    io:println("📝 Trips response: " + tripsJson.toJsonString());
+                                    
+                                    if tripsJson is json[] {
+                                        foreach json tripJson in tripsJson {
+                                            string tripId = check tripJson.tripId.ensureType();
+                                            string departureTime = check tripJson.departureTime.ensureType();
+                                            string arrivalTime = check tripJson.arrivalTime.ensureType();
+                                            string vehicleId = check tripJson.vehicleId.ensureType();
+                                            
+                                            TripInfo trip = {
+                                                tripId: tripId,
+                                                routeName: routeName,
+                                                departureTime: departureTime,
+                                                arrivalTime: arrivalTime,
+                                                vehicleId: vehicleId
+                                            };
+                                            allTrips.push(trip);
+                                        }
+                                    }
+                                } else {
+                                    io:println(string`❌ Invalid trips response format for route ${routeId}`);
                                 }
                             } else {
-                                io:println(string`❌ Invalid trips response format for route ${r.routeId}`);
+                                io:println(string`⚠️  No trips found for route ${routeId} (Status ${tripsResponse.statusCode})`);
                             }
                         } else {
-                            io:println(string`❌ Failed to fetch trips for route ${r.routeId} (Status ${tripsResponse.statusCode})`);
+                            io:println(string`❌ Error connecting to Transport Service for trips: ${tripsResponse.message()}`);
                         }
-                    } else {
-                        io:println(string`❌ Error connecting to Transport Service for trips of route ${r.routeId}: ${tripsResponse.message()}`);
                     }
+                    return allTrips;
+                } else {
+                    return error("Routes response is not an array");
                 }
-                return allTrips;
             } else {
                 return error("Invalid routes response format");
             }
@@ -375,6 +392,6 @@ function fetchAvailableTrips() returns Trip[]|error {
             return error(string`Failed to fetch routes (Status ${routesResponse.statusCode})`);
         }
     } else {
-        return error(string`Error connecting to Transport Service for routes: ${routesResponse.message()}`);
+        return error(string`Error connecting to Transport Service: ${routesResponse.message()}`);
     }
 }
