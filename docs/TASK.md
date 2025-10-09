@@ -67,7 +67,3 @@ Each component should be deployed as a **microservice**, running inside Docker c
 - Documentation & presentation – 5%
 
 **Total = 100 marks**
-
-## **Submission Instructions**
-
-- The execution environment should run on the command line.
