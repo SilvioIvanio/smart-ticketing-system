@@ -41,8 +41,7 @@ services:
     networks:
       - ticketing-network
 
-  passenger-service:
-    image: eclipse-temurin:17-jre
+      image: eclipse-temurin:21-jre
     container_name: passenger-service
     working_dir: /app
     volumes:
