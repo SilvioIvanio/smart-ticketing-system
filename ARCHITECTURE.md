@@ -1,3 +1,4 @@
+```mermaid
 flowchart LR
   subgraph Clients
     P[Passenger App/CLI]
@@ -38,3 +39,4 @@ flowchart LR
   TR-- schedule.updates -->K
   TK-- ticket.events -->K
   NS-- consume all -->K
+```
