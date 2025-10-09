@@ -42,7 +42,7 @@ services:
       - ticketing-network
 
   passenger-service:
-    image: eclipse-temurin:21-jre
+    image: eclipse-temurin:25-jre
     container_name: passenger-service
     working_dir: /app
     volumes:
@@ -51,8 +51,8 @@ services:
     ports:
       - "9090:9090"
     command: >
-      java 
-      -jar passenger_service.jar --b7a.config.file=/app/Config.toml
+      java -jar passenger_service.jar 
+      --b7a.config.file=/app/Config.toml
     depends_on:
       - mongodb
     networks:
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
 
   ticketing-service:
-    image: eclipse-temurin:21-jre
+    image: eclipse-temurin:25-jre
     container_name: ticketing-service
     working_dir: /app
     volumes:
@@ -69,8 +69,8 @@ services:
     ports:
       - "9091:9091"
     command: >
-      java 
-      -jar ticketing_service.jar --b7a.config.file=/app/Config.toml
+      java -jar ticketing_service.jar 
+      --b7a.config.file=/app/Config.toml
     depends_on:
       - kafka
       - mongodb
@@ -79,7 +79,7 @@ services:
     restart: unless-stopped
 
   payment-service:
-    image: eclipse-temurin:21-jre
+    image: eclipse-temurin:25-jre
     container_name: payment-service
     working_dir: /app
     volumes:
@@ -87,7 +87,8 @@ services:
       - ./services/payment-service/payment_service/Config.toml:/app/Config.toml
     command: >
       java 
-      -jar payment_service.jar --b7a.config.file=/app/Config.toml
+      -jar payment_service.jar 
+      --b7a.config.file=/app/Config.toml
     depends_on:
       - kafka
       - mongodb
@@ -96,7 +97,7 @@ services:
     restart: unless-stopped
 
   transport-service:
-    image: eclipse-temurin:21-jre
+    image: eclipse-temurin:25-jre
     container_name: transport-service
     working_dir: /app
     volumes:
@@ -106,7 +107,8 @@ services:
       - "9094:9092"
     command: >
       java 
-      -jar transport_service.jar --b7a.config.file=/app/Config.toml
+      -jar transport_service.jar 
+      --b7a.config.file=/app/Config.toml
     depends_on:
       - kafka
       - mongodb
@@ -115,7 +117,7 @@ services:
     restart: unless-stopped
 
   notification-service:
-    image: eclipse-temurin:21-jre
+    image: eclipse-temurin:25-jre
     container_name: notification-service
     working_dir: /app
     volumes:
@@ -123,7 +125,8 @@ services:
       - ./services/notification-service/notification_service/Config.toml:/app/Config.toml
     command: >
       java 
-      -jar notification_service.jar --b7a.config.file=/app/Config.toml
+      -jar notification_service.jar 
+      --b7a.config.file=/app/Config.toml
     depends_on:
       - kafka
     networks:
@@ -131,7 +134,7 @@ services:
     restart: unless-stopped
 
   admin-service:
-    image: eclipse-temurin:21-jre
+    image: eclipse-temurin:25-jre
     container_name: admin-service
     working_dir: /app
     volumes:
@@ -141,7 +144,8 @@ services:
       - "9093:9093"
     command: >
       java 
-      -jar admin_service.jar --b7a.config.file=/app/Config.toml
+      -jar admin_service.jar 
+      --b7a.config.file=/app/Config.toml
     depends_on:
       - kafka
       - mongodb
