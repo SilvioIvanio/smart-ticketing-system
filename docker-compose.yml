@@ -49,10 +49,11 @@ services:
       - ./services/passenger-service/passenger_service/target/bin:/app
     ports:
       - "9090:9090"
-    command: java -jar passenger_service.jar
-    environment:
-      - BAL_CONFIG_MONGOHOST=mongodb://mongodb:27017
-      - BAL_CONFIG_DBNAME=ticketing_db
+    command: >
+      java 
+      -Csilvi.passenger_service.mongoHost="mongodb://mongodb:27017" 
+      -Csilvi.passenger_service.dbName="ticketing_db" 
+      -jar passenger_service.jar
     depends_on:
       - mongodb
     networks:
@@ -67,11 +68,12 @@ services:
       - ./services/ticketing-service/ticketing_service/target/bin:/app
     ports:
       - "9091:9091"
-    command: java -jar ticketing_service.jar
-    environment:
-      - BAL_CONFIG_KAFKABOOTSTRAP=kafka:9092
-      - BAL_CONFIG_MONGOHOST=mongodb://mongodb:27017
-      - BAL_CONFIG_DBNAME=ticketing_db
+    command: >
+      java 
+      -Csilvi.ticketing_service.kafkaBootstrap="kafka:9092" 
+      -Csilvi.ticketing_service.mongoHost="mongodb://mongodb:27017" 
+      -Csilvi.ticketing_service.dbName="ticketing_db" 
+      -jar ticketing_service.jar
     depends_on:
       - kafka
       - mongodb
@@ -85,11 +87,12 @@ services:
     working_dir: /app
     volumes:
       - ./services/payment-service/payment_service/target/bin:/app
-    command: java -jar payment_service.jar
-    environment:
-      - BAL_CONFIG_KAFKABOOTSTRAP=kafka:9092
-      - BAL_CONFIG_MONGOHOST=mongodb://mongodb:27017
-      - BAL_CONFIG_DBNAME=ticketing_db
+    command: >
+      java 
+      -Csilvi.payment_service.kafkaBootstrap="kafka:9092" 
+      -Csilvi.payment_service.mongoHost="mongodb://mongodb:27017" 
+      -Csilvi.payment_service.dbName="ticketing_db" 
+      -jar payment_service.jar
     depends_on:
       - kafka
       - mongodb
@@ -105,11 +108,12 @@ services:
       - ./services/transport-service/transport_service/target/bin:/app
     ports:
       - "9094:9092"
-    command: java -jar transport_service.jar
-    environment:
-      - BAL_CONFIG_KAFKABOOTSTRAP=kafka:9092
-      - BAL_CONFIG_MONGOHOST=mongodb://mongodb:27017
-      - BAL_CONFIG_DBNAME=ticketing_db
+    command: >
+      java 
+      -Csilvi.transport_service.kafkaBootstrap="kafka:9092" 
+      -Csilvi.transport_service.mongoHost="mongodb://mongodb:27017" 
+      -Csilvi.transport_service.dbName="ticketing_db" 
+      -jar transport_service.jar
     depends_on:
       - kafka
       - mongodb
@@ -123,9 +127,10 @@ services:
     working_dir: /app
     volumes:
       - ./services/notification-service/notification_service/target/bin:/app
-    command: java -jar notification_service.jar
-    environment:
-      - BAL_CONFIG_KAFKABOOTSTRAP=kafka:9092
+    command: >
+      java 
+      -Csilvi.notification_service.kafkaBootstrap="kafka:9092" 
+      -jar notification_service.jar
     depends_on:
       - kafka
     networks:
@@ -140,11 +145,12 @@ services:
       - ./services/admin-service/admin_service/target/bin:/app
     ports:
       - "9093:9093"
-    command: java -jar admin_service.jar
-    environment:
-      - BAL_CONFIG_KAFKABOOTSTRAP=kafka:9092
-      - BAL_CONFIG_MONGOHOST=mongodb://mongodb:27017
-      - BAL_CONFIG_DBNAME=ticketing_db
+    command: >
+      java 
+      -Csilvi.admin_service.kafkaBootstrap="kafka:9092" 
+      -Csilvi.admin_service.mongoHost="mongodb://mongodb:27017" 
+      -Csilvi.admin_service.dbName="ticketing_db" 
+      -jar admin_service.jar
     depends_on:
       - kafka
       - mongodb
