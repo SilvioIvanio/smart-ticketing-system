@@ -13,87 +13,118 @@ public function main() returns error? {
 
     boolean running = true;
     while running {
-        io:println("\nAvailable commands:");
-        io:println("  1. create_route       - Create a new transport route");
-        io:println("  2. create_trip        - Create a new trip for a route");
-        io:println("  3. sales_report       - Generate a sales report");
-        io:println("  4. publish_disruption - Publish a service disruption alert");
-        io:println("  5. exit               - Exit the application");
-        io:print("\nEnter command: ");
+        io:println("\n╔════════════════════════════════════════════╗");
+        io:println("║          Admin Commands                    ║");
+        io:println("╠════════════════════════════════════════════╣");
+        io:println("║  1. Create route                           ║");
+        io:println("║  2. Create trip                            ║");
+        io:println("║  3. Sales report                           ║");
+        io:println("║  4. Publish disruption                     ║");
+        io:println("║  0. Exit                                   ║");
+        io:println("╚════════════════════════════════════════════╝");
+        io:print("\n👉 Enter your choice: ");
 
         string? command = io:readln();
 
         if command is string {
             match command.trim() {
-                "create_route" => {
+                "1" => {
                     check handleCreateRoute();
                 }
-                "create_trip" => {
+                "2" => {
                     check handleCreateTrip();
                 }
-                "sales_report" => {
+                "3" => {
                     check handleSalesReport();
                 }
-                "publish_disruption" => {
+                "4" => {
                     check handlePublishDisruption();
                 }
-                "exit" => {
+                "0" => {
                     running = false;
-                    io:println("Exiting Admin CLI. Goodbye!");
+                    io:println("\n👋 Exiting Admin CLI. Goodbye!");
                 }
                 _ => {
-                    io:println("Unknown command. Please try again.");
+                    io:println("❌ Invalid choice. Please enter a valid number.");
                 }
             }
         } else {
-            io:println("Invalid input. Please try again.");
+            io:println("❌ Invalid input. Please try again.");
         }
     }
     return;
 }
 
 function handleCreateRoute() returns error? {
-    io:println("\n--- Create New Transport Route ---");
+    io:println("\n╔════════════════════════════════════════════╗");
+    io:println("║         Create New Route                   ║");
+    io:println("╚════════════════════════════════════════════╝");
+    
     io:print("Enter route name: ");
     string? name = io:readln();
-    io:print("Enter route type (e.g., bus, train): ");
+    io:print("Enter route type (bus/train): ");
     string? routeType = io:readln();
-    io:print("Enter stops (comma-separated, e.g., 'Stop A,Stop B'): ");
+    io:print("Enter stops (comma-separated): ");
     string? stopsStr = io:readln();
 
     if name is string && routeType is string && stopsStr is string {
         string[] stops = regex:split(stopsStr, ",").map(s => s.trim());
-        // For simplicity, schedule is hardcoded. In a real app, this would be user input.
+        
         json schedule = {
             "weekdays": ["08:00", "17:00"],
             "weekends": ["10:00"]
         };
+        
         json routePayload = {
             "name": name,
             "routeType": routeType,
             "stops": stops,
             "schedule": schedule
         };
-        do {
-            http:Response routeResponse = check transportService->post("/transport/routes", routePayload);
-            json responseJson = check routeResponse.getJsonPayload();
-            io:println("Route creation successful:");
-            io:println(responseJson.toJsonString());
-        } on fail error err {
-            io:println(string`Error creating route: ${err.message()}`);
+        
+        io:println("\n⏳ Creating route...");
+        
+        http:Response|error routeResponse = transportService->post("/transport/routes", routePayload);
+        
+        if routeResponse is http:Response {
+            int statusCode = routeResponse.statusCode;
+            
+            if statusCode == 201 || statusCode == 200 {
+                json|error responseJson = routeResponse.getJsonPayload();
+                if responseJson is json {
+                    io:println("\n✅ Route created successfully!");
+                    io:println(responseJson.toJsonString());
+                } else {
+                    io:println("✅ Route created successfully!");
+                }
+            } else {
+                string|error payload = routeResponse.getTextPayload();
+                if payload is string {
+                    io:println(string`❌ Route creation failed (Status ${statusCode}): ${payload}`);
+                } else {
+                    io:println(string`❌ Route creation failed with status code: ${statusCode}`);
+                }
+            }
+        } else {
+            io:println("❌ Error connecting to Transport Service.");
+            io:println("💡 Make sure the service is running on http://localhost:9094");
+            io:println(string`Error details: ${routeResponse.message()}`);
         }
     } else {
-        io:println("All fields are required for route creation.");
+        io:println("❌ All fields are required for route creation.");
     }
 }
 
 function handleCreateTrip() returns error? {
-    io:println("\n--- Create New Trip ---");
+    io:println("\n╔════════════════════════════════════════════╗");
+    io:println("║           Create New Trip                  ║");
+    io:println("╚════════════════════════════════════════════╝");
+    
     io:print("Enter Route ID: ");
     string? routeId = io:readln();
-    io:print("Enter Departure Time (YYYY-MM-DDTHH:MM:SSZ, e.g., 2024-12-20T08:00:00Z): ");
+    io:print("Enter Departure Time (YYYY-MM-DDTHH:MM:SSZ): ");
     string? departureTime = io:readln();
-    io:print("Enter Arrival Time (YYYY-MM-DDTHH:MM:SSZ, e.g., 2024-12-20T09:30:00Z): ");
+    io:print("Enter Arrival Time (YYYY-MM-DDTHH:MM:SSZ): ");
     string? arrivalTime = io:readln();
     io:print("Enter Vehicle ID: ");
     string? vehicleId = io:readln();
@@ -105,38 +136,85 @@ function handleCreateTrip() returns error? {
             "arrivalTime": arrivalTime,
             "vehicleId": vehicleId
         };
-        do {
-            http:Response tripResponse = check transportService->post("/transport/trips", tripPayload);
-            json responseJson = check tripResponse.getJsonPayload();
-            io:println("Trip creation successful:");
-            io:println(responseJson.toJsonString());
-        } on fail error err {
-            io:println(string`Error creating trip: ${err.message()}`);
+        
+        io:println("\n⏳ Creating trip...");
+        
+        http:Response|error tripResponse = transportService->post("/transport/trips", tripPayload);
+        
+        if tripResponse is http:Response {
+            int statusCode = tripResponse.statusCode;
+            
+            if statusCode == 201 || statusCode == 200 {
+                json|error responseJson = tripResponse.getJsonPayload();
+                if responseJson is json {
+                    io:println("\n✅ Trip created successfully!");
+                    io:println(responseJson.toJsonString());
+                } else {
+                    io:println("✅ Trip created successfully!");
+                }
+            } else {
+                string|error payload = tripResponse.getTextPayload();
+                if payload is string {
+                    io:println(string`❌ Trip creation failed (Status ${statusCode}): ${payload}`);
+                } else {
+                    io:println(string`❌ Trip creation failed with status code: ${statusCode}`);
+                }
+            }
+        } else {
+            io:println("❌ Error connecting to Transport Service.");
+            io:println("💡 Make sure the service is running on http://localhost:9094");
+            io:println(string`Error details: ${tripResponse.message()}`);
         }
     } else {
-        io:println("All fields are required for trip creation.");
+        io:println("❌ All fields are required for trip creation.");
     }
 }
 
 function handleSalesReport() returns error? {
-    io:println("\n--- Generate Sales Report ---");
-    do {
-        http:Response salesReportResponse = check adminService->get("/admin/reports/sales");
-        json responseJson = check salesReportResponse.getJsonPayload();
-        io:println("Sales Report:");
-        io:println(responseJson.toJsonString());
-    } on fail error err {
-        io:println(string`Error generating sales report: ${err.message()}`);
+    io:println("\n╔════════════════════════════════════════════╗");
+    io:println("║          Sales Report                      ║");
+    io:println("╚════════════════════════════════════════════╝");
+    
+    io:println("\n⏳ Generating report...");
+    
+    http:Response|error salesReportResponse = adminService->get("/admin/reports/sales");
+    
+    if salesReportResponse is http:Response {
+        int statusCode = salesReportResponse.statusCode;
+        
+        if statusCode == 200 {
+            json|error responseJson = salesReportResponse.getJsonPayload();
+            if responseJson is json {
+                io:println("\n✅ Sales Report:");
+                io:println(responseJson.toJsonString());
+            } else {
+                io:println("❌ Invalid response format");
+            }
+        } else {
+            string|error payload = salesReportResponse.getTextPayload();
+            if payload is string {
+                io:println(string`❌ Failed to generate report (Status ${statusCode}): ${payload}`);
+            } else {
+                io:println(string`❌ Failed to generate report with status code: ${statusCode}`);
+            }
+        }
+    } else {
+        io:println("❌ Error connecting to Admin Service.");
+        io:println("💡 Make sure the service is running on http://localhost:9093");
+        io:println(string`Error details: ${salesReportResponse.message()}`);
     }
 }
 
 function handlePublishDisruption() returns error? {
-    io:println("\n--- Publish Service Disruption ---");
-    io:print("Enter Route ID for disruption: ");
+    io:println("\n╔════════════════════════════════════════════╗");
+    io:println("║       Publish Disruption                   ║");
+    io:println("╚════════════════════════════════════════════╝");
+    
+    io:print("Enter Route ID: ");
     string? routeId = io:readln();
-    io:print("Enter disruption message: ");
+    io:print("Enter message: ");
     string? message = io:readln();
-    io:print("Enter severity (e.g., LOW, MEDIUM, HIGH): ");
+    io:print("Enter severity (LOW/MEDIUM/HIGH): ");
     string? severity = io:readln();
 
     if routeId is string && message is string && severity is string {
@@ -145,15 +223,36 @@ function handlePublishDisruption() returns error? {
             "message": message,
             "severity": severity
         };
-        do {
-            http:Response disruptionResponse = check adminService->post("/admin/disruptions", disruptionPayload);
-            json responseJson = check disruptionResponse.getJsonPayload();
-            io:println("Disruption published successfully:");
-            io:println(responseJson.toJsonString());
-        } on fail error err {
-            io:println(string`Error publishing disruption: ${err.message()}`);
+        
+        io:println("\n⏳ Publishing disruption...");
+        
+        http:Response|error disruptionResponse = adminService->post("/admin/disruptions", disruptionPayload);
+        
+        if disruptionResponse is http:Response {
+            int statusCode = disruptionResponse.statusCode;
+            
+            if statusCode == 201 || statusCode == 200 {
+                json|error responseJson = disruptionResponse.getJsonPayload();
+                if responseJson is json {
+                    io:println("\n✅ Disruption published successfully!");
+                    io:println(responseJson.toJsonString());
+                } else {
+                    io:println("✅ Disruption published successfully!");
+                }
+            } else {
+                string|error payload = disruptionResponse.getTextPayload();
+                if payload is string {
+                    io:println(string`❌ Failed to publish disruption (Status ${statusCode}): ${payload}`);
+                } else {
+                    io:println(string`❌ Failed to publish disruption with status code: ${statusCode}`);
+                }
+            }
+        } else {
+            io:println("❌ Error connecting to Admin Service.");
+            io:println("💡 Make sure the service is running on http://localhost:9093");
+            io:println(string`Error details: ${disruptionResponse.message()}`);
         }
     } else {
-        io:println("All fields are required for publishing a disruption.");
+        io:println("❌ All fields are required for publishing a disruption.");
     }
 }
