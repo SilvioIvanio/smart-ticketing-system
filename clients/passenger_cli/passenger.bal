@@ -6,71 +6,161 @@ import ballerina/json;
 final http:Client passengerService = check new ("http://localhost:9090");
 final http:Client ticketingService = check new ("http://localhost:9091");
 
+// Global variable to store logged-in user ID
+string? loggedInUserId = ();
+
 public function main() returns error? {
     io:println("=================================================");
     io:println("Smart Ticketing System - Passenger CLI");
     io:println("=================================================");
-    io:println("");
 
-    // --- Passenger Registration ---
-    io:println("1️⃣  REGISTERING A NEW PASSENGER");
-    io:println("-------------------------------------------------");
-    json registerPayload = {
-        "username": "Jane Doe",
-        "email": "jane@example.com",
-        "password": "SecurePassword456"
-    };
-    http:Response registerResponse = check passengerService->post("/passenger/register", registerPayload);
-    io:println("✅ Registration complete");
-    io:println(check registerResponse.getJson().toJsonString());
-    io:println("");
+    boolean running = true;
+    while running {
+        io:println("\nAvailable commands:");
+        io:println("  1. register - Register a new passenger");
+        io:println("  2. login    - Log in as an existing passenger");
+        if loggedInUserId is string {
+            io:println("  3. buy_ticket - Purchase a new ticket");
+            io:println("  4. view_tickets - View your purchased tickets");
+        }
+        io:println("  5. exit     - Exit the application");
+        io:print("\nEnter command: ");
 
-    // --- Passenger Login ---
-    io:println("2️⃣  LOGGING IN");
-    io:println("-------------------------------------------------");
-    json loginPayload = {
-        "email": "jane@example.com",
-        "password": "SecurePassword456"
-    };
-    http:Response loginResponse = check passengerService->post("/passenger/login", loginPayload);
-    json loginJson = check loginResponse.getJson();
-    io:println(loginJson.toJsonString());
-    string userId = check loginJson.userId.ensureType();
-    io:println("");
-    io:println(string`👤 Logged in User ID: ${userId}`);
-    io:println("");
+        string? command = io:readln();
 
-    // --- Purchasing a Ticket ---
-    // In a real scenario, the passenger app might query available routes/trips.
-    // For this demo, we'll use a dummy trip ID.
-    string dummyTripId = "TRIP-12345"; // This would typically come from the Transport Service
+        if command is string {
+            match command.trim() {
+                "register" => {
+                    check handleRegister();
+                }
+                "login" => {
+                    check handleLogin();
+                }
+                "buy_ticket" => {
+                    if loggedInUserId is string {
+                        check handleBuyTicket(loggedInUserId);
+                    } else {
+                        io:println("Please log in to buy a ticket.");
+                    }
+                }
+                "view_tickets" => {
+                    if loggedInUserId is string {
+                        check handleViewTickets(loggedInUserId);
+                    } else {
+                        io:println("Please log in to view tickets.");
+                    }
+                }
+                "exit" => {
+                    running = false;
+                    io:println("Exiting Passenger CLI. Goodbye!");
+                }
+                _ => {
+                    io:println("Unknown command. Please try again.");
+                }
+            }
+        } else {
+            io:println("Invalid input. Please try again.");
+        }
+    }
+    return;
+}
 
-    io:println("3️⃣  PURCHASING A TICKET (using a dummy trip ID)");
-    io:println("-------------------------------------------------");
-    json ticketPayload = {
-        "userId": userId,
-        "tripId": dummyTripId,
-        "ticketType": "single",
-        "price": 7.50
-    };
-    http:Response ticketResponse = check ticketingService->post("/ticketing/tickets", ticketPayload);
-    json ticketJson = check ticketResponse.getJson();
-    io:println(ticketJson.toJsonString());
-    string ticketId = check ticketJson.ticketId.ensureType();
-    io:println("");
-    io:println(string`🎫 Purchased Ticket ID: ${ticketId}`);
-    io:println("");
+function handleRegister() returns error? {
+    io:println("\n--- Register New Passenger ---");
+    io:print("Enter username: ");
+    string? username = io:readln();
+    io:print("Enter email: ");
+    string? email = io:readln();
+    io:print("Enter password: ");
+    string? password = io:readln();
 
-    // --- Checking User's Tickets ---
-    io:println("4️⃣  CHECKING USER'S TICKETS");
-    io:println("-------------------------------------------------");
-    http:Response userTicketsResponse = check passengerService->get(string`/passenger/tickets/${userId}`);
-    io:println(check userTicketsResponse.getJson().toJsonString());
-    io:println("");
+    if username is string && email is string && password is string {
+        json registerPayload = {
+            "username": username,
+            "email": email,
+            "password": password
+        };
+        do {
+            http:Response registerResponse = check passengerService->post("/passenger/register", registerPayload);
+            string responseString = check registerResponse.getJsonPayload().toJsonString();
+            io:println("Registration successful:");
+            io:println(responseString);
+        } on fail error err {
+            io:println(string`Error during registration: ${err.message()}`);
+        }
+    } else {
+        io:println("All fields are required for registration.");
+    }
+}
 
-    io:println("=================================================");
-    io:println("Passenger CLI interactions complete.");
-    io:println("=================================================");
+function handleLogin() returns error? {
+    io:println("\n--- Passenger Login ---");
+    io:print("Enter email: ");
+    string? email = io:readln();
+    io:print("Enter password: ");
+    string? password = io:readln();
 
-    return nil;
+    if email is string && password is string {
+        json loginPayload = {
+            "email": email,
+            "password": password
+        };
+        do {
+            http:Response loginResponse = check passengerService->post("/passenger/login", loginPayload);
+            json loginJson = check loginResponse.getJsonPayload();
+            loggedInUserId = check loginJson.userId.ensureType();
+            io:println("Login successful:");
+            io:println(loginJson.toJsonString());
+            io:println(string`👤 Logged in User ID: ${loggedInUserId}`);
+        } on fail error err {
+            io:println(string`Error during login: ${err.message()}`);
+            loggedInUserId = (); // Clear userId on failed login
+        }
+    } else {
+        io:println("Email and password are required for login.");
+    }
+}
+
+function handleBuyTicket(string userId) returns error? {
+    io:println("\n--- Purchase Ticket ---");
+    io:print("Enter Trip ID (e.g., TRIP-12345): ");
+    string? tripId = io:readln();
+    io:print("Enter Ticket Type (e.g., single, daily): ");
+    string? ticketType = io:readln();
+    io:print("Enter Price (e.g., 7.50): ");
+    string? priceStr = io:readln();
+
+    if tripId is string && ticketType is string && priceStr is string {
+        decimal price = check decimal:fromString(priceStr);
+        json ticketPayload = {
+            "userId": userId,
+            "tripId": tripId,
+            "ticketType": ticketType,
+            "price": price
+        };
+        do {
+            http:Response ticketResponse = check ticketingService->post("/ticketing/tickets", ticketPayload);
+            json ticketJson = check ticketResponse.getJsonPayload();
+            string ticketId = check ticketJson.ticketId.ensureType();
+            io:println("Ticket purchase successful:");
+            io:println(ticketJson.toJsonString());
+            io:println(string`🎫 Purchased Ticket ID: ${ticketId}`);
+        } on fail error err {
+            io:println(string`Error during ticket purchase: ${err.message()}`);
+        }
+    } else {
+        io:println("All fields are required for ticket purchase.");
+    }
+}
+
+function handleViewTickets(string userId) returns error? {
+    io:println("\n--- View My Tickets ---");
+    do {
+        http:Response userTicketsResponse = check passengerService->get(string`/passenger/tickets/${userId}`);
+        string responseString = check userTicketsResponse.getJsonPayload().toJsonString();
+        io:println("Your tickets:");
+        io:println(responseString);
+    } on fail error err {
+        io:println(string`Error viewing tickets: ${err.message()}`);
+    }
 }

@@ -4,74 +4,157 @@ import ballerina/json;
 import ballerina/time;
 
 // Client endpoints for the services
-final http:Client transportService = check new ("http://localhost:9094"); // Note: Readme says 9094, docker-compose says 9092 for transport-service internal, but exposed as 9094
+final http:Client transportService = check new ("http://localhost:9094");
 final http:Client adminService = check new ("http://localhost:9093");
 
 public function main() returns error? {
     io:println("=================================================");
     io:println("Smart Ticketing System - Admin CLI");
     io:println("=================================================");
-    io:println("");
 
-    // --- Create a Bus Route ---
-    io:println("1️⃣  CREATING A BUS ROUTE");
-    io:println("-------------------------------------------------");
-    json routePayload = {
-        "name": "Route 101 - City Center Loop",
-        "routeType": "bus",
-        "stops": ["Main Station", "City Hall", "Park Avenue", "Shopping Mall", "Main Station"],
-        "schedule": {
-            "weekdays": ["06:00", "07:00", "08:00", "09:00", "17:00", "18:00", "19:00"],
-            "weekends": ["08:00", "10:00", "14:00", "18:00"]
+    boolean running = true;
+    while running {
+        io:println("\nAvailable commands:");
+        io:println("  1. create_route       - Create a new transport route");
+        io:println("  2. create_trip        - Create a new trip for a route");
+        io:println("  3. sales_report       - Generate a sales report");
+        io:println("  4. publish_disruption - Publish a service disruption alert");
+        io:println("  5. exit               - Exit the application");
+        io:print("\nEnter command: ");
+
+        string? command = io:readln();
+
+        if command is string {
+            match command.trim() {
+                "create_route" => {
+                    check handleCreateRoute();
+                }
+                "create_trip" => {
+                    check handleCreateTrip();
+                }
+                "sales_report" => {
+                    check handleSalesReport();
+                }
+                "publish_disruption" => {
+                    check handlePublishDisruption();
+                }
+                "exit" => {
+                    running = false;
+                    io:println("Exiting Admin CLI. Goodbye!");
+                }
+                _ => {
+                    io:println("Unknown command. Please try again.");
+                }
+            }
+        } else {
+            io:println("Invalid input. Please try again.");
         }
-    };
-    http:Response routeResponse = check transportService->post("/transport/routes", routePayload);
-    json routeJson = check routeResponse.getJson();
-    io:println(routeJson.toJsonString());
-    string routeId = check routeJson.routeId.ensureType();
-    io:println("");
-    io:println(string`🚌 Created Route ID: ${routeId}`);
-    io:println("");
+    }
+    return;
+}
 
-    // --- Create a Trip ---
-    io:println("2️⃣  CREATING A TRIP");
-    io:println("-------------------------------------------------");
-    json tripPayload = {
-        "routeId": routeId,
-        "departureTime": "2024-12-20T08:00:00Z",
-        "arrivalTime": "2024-12-20T09:30:00Z",
-        "vehicleId": "BUS-101"
-    };
-    http:Response tripResponse = check transportService->post("/transport/trips", tripPayload);
-    json tripJson = check tripResponse.getJson();
-    io:println(tripJson.toJsonString());
-    string tripId = check tripJson.tripId.ensureType();
-    io:println("");
-    io:println(string`🚍 Created Trip ID: ${tripId}`);
-    io:println("");
+function handleCreateRoute() returns error? {
+    io:println("\n--- Create New Transport Route ---");
+    io:print("Enter route name: ");
+    string? name = io:readln();
+    io:print("Enter route type (e.g., bus, train): ");
+    string? routeType = io:readln();
+    io:print("Enter stops (comma-separated, e.g., 'Stop A,Stop B'): ");
+    string? stopsStr = io:readln();
 
-    // --- Generate Admin Sales Report ---
-    io:println("3️⃣  GENERATING ADMIN SALES REPORT");
-    io:println("-------------------------------------------------");
-    http:Response salesReportResponse = check adminService->get("/admin/reports/sales");
-    io:println(check salesReportResponse.getJson().toJsonString());
-    io:println("");
+    if name is string && routeType is string && stopsStr is string {
+        string[] stops = stopsStr.split(",").map(s => s.trim());
+        // For simplicity, schedule is hardcoded. In a real app, this would be user input.
+        json schedule = {
+            "weekdays": ["08:00", "17:00"],
+            "weekends": ["10:00"]
+        };
+        json routePayload = {
+            "name": name,
+            "routeType": routeType,
+            "stops": stops,
+            "schedule": schedule
+        };
+        do {
+            http:Response routeResponse = check transportService->post("/transport/routes", routePayload);
+            string responseString = check routeResponse.getJsonPayload().toJsonString();
+            io:println("Route creation successful:");
+            io:println(responseString);
+        } on fail error err {
+            io:println(string`Error creating route: ${err.message()}`);
+        }
+    } else {
+        io:println("All fields are required for route creation.");
+    }
+}
 
-    // --- Publish Service Disruption ---
-    io:println("4️⃣  PUBLISHING SERVICE DISRUPTION");
-    io:println("-------------------------------------------------");
-    json disruptionPayload = {
-        "routeId": routeId,
-        "message": "Route 101 is experiencing delays due to heavy traffic.",
-        "severity": "HIGH"
-    };
-    http:Response disruptionResponse = check adminService->post("/admin/disruptions", disruptionPayload);
-    io:println(check disruptionResponse.getJson().toJsonString());
-    io:println("");
+function handleCreateTrip() returns error? {
+    io:println("\n--- Create New Trip ---");
+    io:print("Enter Route ID: ");
+    string? routeId = io:readln();
+    io:print("Enter Departure Time (YYYY-MM-DDTHH:MM:SSZ, e.g., 2024-12-20T08:00:00Z): ");
+    string? departureTime = io:readln();
+    io:print("Enter Arrival Time (YYYY-MM-DDTHH:MM:SSZ, e.g., 2024-12-20T09:30:00Z): ");
+    string? arrivalTime = io:readln();
+    io:print("Enter Vehicle ID: ");
+    string? vehicleId = io:readln();
 
-    io:println("=================================================");
-    io:println("Admin CLI interactions complete.");
-    io:println("=================================================");
+    if routeId is string && departureTime is string && arrivalTime is string && vehicleId is string {
+        json tripPayload = {
+            "routeId": routeId,
+            "departureTime": departureTime,
+            "arrivalTime": arrivalTime,
+            "vehicleId": vehicleId
+        };
+        do {
+            http:Response tripResponse = check transportService->post("/transport/trips", tripPayload);
+            string responseString = check tripResponse.getJsonPayload().toJsonString();
+            io:println("Trip creation successful:");
+            io:println(responseString);
+        } on fail error err {
+            io:println(string`Error creating trip: ${err.message()}`);
+        }
+    } else {
+        io:println("All fields are required for trip creation.");
+    }
+}
 
-    return nil;
+function handleSalesReport() returns error? {
+    io:println("\n--- Generate Sales Report ---");
+    do {
+        http:Response salesReportResponse = check adminService->get("/admin/reports/sales");
+        string responseString = check salesReportResponse.getJsonPayload().toJsonString();
+        io:println("Sales Report:");
+        io:println(responseString);
+    } on fail error err {
+        io:println(string`Error generating sales report: ${err.message()}`);
+    }
+}
+
+function handlePublishDisruption() returns error? {
+    io:println("\n--- Publish Service Disruption ---");
+    io:print("Enter Route ID for disruption: ");
+    string? routeId = io:readln();
+    io:print("Enter disruption message: ");
+    string? message = io:readln();
+    io:print("Enter severity (e.g., LOW, MEDIUM, HIGH): ");
+    string? severity = io:readln();
+
+    if routeId is string && message is string && severity is string {
+        json disruptionPayload = {
+            "routeId": routeId,
+            "message": message,
+            "severity": severity
+        };
+        do {
+            http:Response disruptionResponse = check adminService->post("/admin/disruptions", disruptionPayload);
+            string responseString = check disruptionResponse.getJsonPayload().toJsonString();
+            io:println("Disruption published successfully:");
+            io:println(responseString);
+        } on fail error err {
+            io:println(string`Error publishing disruption: ${err.message()}`);
+        }
+    } else {
+        io:println("All fields are required for publishing a disruption.");
+    }
 }
