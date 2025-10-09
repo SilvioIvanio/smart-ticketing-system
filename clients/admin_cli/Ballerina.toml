@@ -1,0 +1,8 @@
+[package]
+org = "silvioivanio"
+name = "admin_cli"
+version = "0.1.0"
+distribution = "2201.12.10"
+
+[build-options]
+observabilityIncluded = true

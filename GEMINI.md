@@ -1,91 +1,75 @@
-# GEMINI.md
+# Project Overview
 
-## Project Overview
+This project implements a Smart Public Transport Ticketing System using a microservices architecture. It's designed for managing passenger information, ticketing, transport routes, payments, and notifications for a city's public transport system.
 
-This project is a **Smart Public Transport Ticketing System** for Windhoek City Council's buses and trains. It is a distributed, microservices-based platform designed to replace traditional paper-based ticketing systems. The system is built using **Ballerina** for the microservices, **Apache Kafka** for event-driven communication, **MongoDB** for data storage, and **Docker** for containerization and orchestration.
+**Key Technologies:**
 
-The main goals of the project are to provide a seamless and convenient ticketing experience for passengers, and to provide administrators with real-time data and tools to manage the transport system efficiently.
+*   **Ballerina:** Used for implementing the individual microservices.
+*   **Apache Kafka:** Serves as the event-driven messaging backbone for inter-service communication.
+*   **MongoDB:** The primary NoSQL database for persistent data storage across services.
+*   **Docker & Docker Compose:** Used for containerization and orchestration of all services and infrastructure components.
+
+**Architecture:**
+
+The system comprises six distinct microservices: Passenger, Ticketing, Transport, Admin, Payment, and Notification. These services interact with each other primarily through Apache Kafka for asynchronous communication and share data persistence via MongoDB.
 
 ## Building and Running
 
 ### Prerequisites
 
 *   Docker Desktop
-*   PowerShell (on Windows) or a shell that can run `.sh` files.
-*   6GB of RAM available
+*   PowerShell (for Windows-specific scripts, though `build-all.sh` and `test_system.sh` are bash scripts)
+*   Minimum 6GB RAM available
 
-### Building the Services
+### Build All Services
 
-To build all the services, run the `build-all.sh` script from the root of the project:
+To build all Ballerina microservices, execute the `build-all.sh` script:
 
-```sh
+```bash
 ./build-all.sh
 ```
 
-This will compile all the Ballerina services and create the necessary JAR files for running them.
+This script navigates into each service's directory and runs `bal build` to compile the Ballerina code into executable JAR files.
 
-### Running the System
+### Deploy and Run with Docker Compose
 
-The entire system can be started using Docker Compose:
+The entire system, including Kafka, Zookeeper, MongoDB, and all microservices, can be deployed and run using Docker Compose:
 
-```sh
+```bash
 docker-compose up -d
 ```
 
-This will start all the microservices, as well as Kafka, Zookeeper, and MongoDB.
+Wait approximately 30 seconds for all services to become ready after deployment.
 
-To stop the system, run:
+### Run Integration Tests
 
-```sh
+An integration test suite is available to verify the system's functionality. Ensure the system is deployed and running before executing:
+
+```bash
+./test_system.sh
+```
+
+This script performs a series of `curl` commands to simulate user interactions like registration, login, route creation, ticket purchase, and report generation.
+
+### Stopping the System
+
+To stop all running services and remove their containers:
+
+```bash
 docker-compose down
 ```
 
-To stop the system and remove all data, run:
+To stop services and remove all associated data volumes (for a clean slate):
 
-```sh
+```bash
 docker-compose down -v
 ```
 
-### Testing the System
-
-The `Readme.md` file contains a set of `Invoke-RestMethod` commands for testing the system using PowerShell. These can be adapted for use with `curl` or other tools.
-
 ## Development Conventions
 
-*   All microservices are written in **Ballerina**.
-*   Services communicate with each other asynchronously using **Apache Kafka**.
-*   **MongoDB** is used as the persistent data store.
-*   All services are containerized using **Docker**.
-*   The system is orchestrated using **Docker Compose**.
-*   The `build-all.sh` script is used to build all the services.
-
-## Services
-
-The system is composed of the following microservices:
-
-| Service | Port | Description |
-|---|---|---|
-| **Passenger Service** | 9090 | Handles user registration, login, and ticket management. |
-| **Ticketing Service** | 9091 | Manages the lifecycle of tickets (CREATED, PAID, VALIDATED, EXPIRED). |
-| **Transport Service** | 9094 | Manages routes and trips. |
-| **Admin Service** | 9093 | Provides sales reports and allows for publishing disruption alerts. |
-| **Payment Service** | - | Simulates payment processing and runs as a background service. |
-| **Notification Service** | - | Sends notifications to users about trip updates and other events. |
-
-## Data Models
-
-The main data models used in the system are:
-
-*   **User:** Represents a passenger or an administrator.
-*   **Route:** Represents a bus or train route.
-*   **Trip:** Represents a specific journey on a route at a particular time.
-*   **Ticket:** Represents a ticket for a trip.
-*   **Payment:** Represents a payment for a ticket.
-
-## Kafka Topics
-
-The following Kafka topics are used for event-driven communication between the services:
-
-*   `ticket.requests`: Used to request the creation of a new ticket.
-*   `payments.processed`: Used to confirm that a payment has been processed.
-*   `schedule.updates`: Used to broadcast updates to transport schedules.
+*   **Language:** Ballerina is the primary language for service implementation.
+*   **Configuration:** Service-specific configurations (e.g., database connections, Kafka bootstrap servers) are managed via `Config.toml` files within each service's directory.
+*   **Containerization:** Each service is containerized using Docker, with `Dockerfile`s defining their build environment and dependencies. The `docker-compose.yml` orchestrates their deployment.
+*   **API Endpoints:** Services expose RESTful HTTP endpoints, as demonstrated in `admin_service.bal`.
+*   **Messaging:** Apache Kafka is used for event-driven communication between services, facilitating asynchronous operations like payment processing and notifications.
+*   **Data Storage:** MongoDB is used for persisting application data.
