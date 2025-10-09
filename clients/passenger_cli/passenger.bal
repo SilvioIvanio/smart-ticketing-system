@@ -4,6 +4,7 @@ import ballerina/http;
 // Client endpoints for the services
 final http:Client passengerService = check new ("http://localhost:9090");
 final http:Client ticketingService = check new ("http://localhost:9091");
+final http:Client transportService = check new ("http://localhost:9094");
 
 // Global variable to store logged-in user ID
 string? loggedInUserId = ();
@@ -184,61 +185,93 @@ function handleBuyTicket(string userId) returns error? {
     io:println("║           Purchase Ticket                  ║");
     io:println("╚════════════════════════════════════════════╝");
     
-    io:print("Enter Trip ID: ");
-    string? tripId = io:readln();
-    io:print("Enter Ticket Type (single/daily/weekly): ");
-    string? ticketType = io:readln();
-    io:print("Enter Price: ");
-    string? priceStr = io:readln();
+    io:println("\n⏳ Fetching available trips...");
+    Trip[]|error availableTrips = fetchAvailableTrips();
 
-    if tripId is string && ticketType is string && priceStr is string {
-        decimal|error price = decimal:fromString(priceStr);
-        if price is error {
-            io:println("❌ Invalid price format. Please enter a valid number.");
-            return;
-        }
-        
-        json ticketPayload = {
-            "userId": userId,
-            "tripId": tripId,
-            "ticketType": ticketType,
-            "price": price
-        };
-        
-        io:println("\n⏳ Creating ticket...");
-        
-        http:Response|error ticketResponse = ticketingService->post("/ticketing/tickets", ticketPayload);
-        
-        if ticketResponse is http:Response {
-            int statusCode = ticketResponse.statusCode;
-            
-            if statusCode == 201 || statusCode == 200 {
-                json|error ticketJson = ticketResponse.getJsonPayload();
-                if ticketJson is json {
-                    string|error ticketId = ticketJson.ticketId.ensureType();
-                    io:println("\n✅ Ticket purchase successful!");
-                    io:println(ticketJson.toJsonString());
-                    if ticketId is string {
-                        io:println(string`🎫 Ticket ID: ${ticketId}`);
+    if availableTrips is error {
+        io:println(string`❌ Error fetching trips: ${availableTrips.message()}`);
+        return;
+    }
+
+    if availableTrips.length() == 0 {
+        io:println("❌ No trips available at the moment. Please try again later.");
+        return;
+    }
+
+    io:println("\nAvailable Trips:");
+    foreach int i in 0..<availableTrips.length() {
+        Trip t = availableTrips[i];
+        io:println(string`  [${i + 1}] Route: ${t.routeName}, Vehicle: ${t.vehicleId}, Departure: ${t.departureTime}, Arrival: ${t.arrivalTime}, Trip ID: ${t.tripId}`);
+    }
+
+    io:print("\nEnter the number of the trip you want to purchase a ticket for: ");
+    string? tripChoiceStr = io:readln();
+
+    if tripChoiceStr is string {
+        int|error tripIndex = int:fromString(tripChoiceStr);
+        if tripIndex is int && tripIndex > 0 && tripIndex <= availableTrips.length() {
+            Trip selectedTrip = availableTrips[tripIndex - 1];
+            string tripId = selectedTrip.tripId;
+
+            io:print("Enter Ticket Type (single/daily/weekly): ");
+            string? ticketType = io:readln();
+            io:print("Enter Price: ");
+            string? priceStr = io:readln();
+
+            if ticketType is string && priceStr is string {
+                decimal|error price = decimal:fromString(priceStr);
+                if price is error {
+                    io:println("❌ Invalid price format. Please enter a valid number.");
+                    return;
+                }
+                
+                json ticketPayload = {
+                    "userId": userId,
+                    "tripId": tripId,
+                    "ticketType": ticketType,
+                    "price": price
+                };
+                
+                io:println("\n⏳ Creating ticket...");
+                
+                http:Response|error ticketResponse = ticketingService->post("/ticketing/tickets", ticketPayload);
+                
+                if ticketResponse is http:Response {
+                    int statusCode = ticketResponse.statusCode;
+                    
+                    if statusCode == 201 || statusCode == 200 {
+                        json|error ticketJson = ticketResponse.getJsonPayload();
+                        if ticketJson is json {
+                            string|error ticketId = ticketJson.ticketId.ensureType();
+                            io:println("\n✅ Ticket purchase successful!");
+                            io:println(ticketJson.toJsonString());
+                            if ticketId is string {
+                                io:println(string`🎫 Ticket ID: ${ticketId}`);
+                            }
+                        } else {
+                            io:println("✅ Ticket created successfully!");
+                        }
+                    } else {
+                        string|error payload = ticketResponse.getTextPayload();
+                        if payload is string {
+                            io:println(string`❌ Ticket purchase failed (Status ${statusCode}): ${payload}`);
+                        } else {
+                            io:println(string`❌ Ticket purchase failed with status code: ${statusCode}`);
+                        }
                     }
                 } else {
-                    io:println("✅ Ticket created successfully!");
+                    io:println("❌ Error connecting to Ticketing Service.");
+                    io:println("💡 Make sure the service is running on http://localhost:9091");
+                    io:println(string`Error details: ${ticketResponse.message()}`);
                 }
             } else {
-                string|error payload = ticketResponse.getTextPayload();
-                if payload is string {
-                    io:println(string`❌ Ticket purchase failed (Status ${statusCode}): ${payload}`);
-                } else {
-                    io:println(string`❌ Ticket purchase failed with status code: ${statusCode}`);
-                }
+                io:println("❌ Ticket type and price are required.");
             }
         } else {
-            io:println("❌ Error connecting to Ticketing Service.");
-            io:println("💡 Make sure the service is running on http://localhost:9091");
-            io:println(string`Error details: ${ticketResponse.message()}`);
+            io:println("❌ Invalid trip selection.");
         }
     } else {
-        io:println("❌ All fields are required for ticket purchase.");
+        io:println("❌ Invalid input.");
     }
 }
 
@@ -274,5 +307,73 @@ function handleViewTickets(string userId) returns error? {
         io:println("❌ Error connecting to Passenger Service.");
         io:println("💡 Make sure the service is running on http://localhost:9090");
         io:println(string`Error details: ${userTicketsResponse.message()}`);
+    }
+}
+
+// Define record types for Route and Trip
+type Route record {
+    string routeId;
+    string name;
+    string routeType;
+    string[] stops;
+    json schedule;
+    boolean active;
+    string createdAt;
+};
+
+type Trip record {
+    string tripId;
+    string routeId;
+    string routeName;
+    string departureTime;
+    string arrivalTime;
+    string status;
+    string vehicleId;
+    string createdAt;
+};
+
+function fetchAvailableTrips() returns Trip[]|error {
+    io:println("\n⏳ Fetching routes...");
+    http:Response|error routesResponse = transportService->get("/transport/routes");
+
+    if routesResponse is http:Response {
+        if routesResponse.statusCode == 200 {
+            json|error routesJson = routesResponse.getJsonPayload();
+            if routesJson is json && routesJson is json[] {
+                Route[] allRoutes = check routesJson.cloneWithType();
+                Trip[] allTrips = [];
+
+                foreach Route r in allRoutes {
+                    io:println(string`⏳ Fetching trips for route: ${r.name} (${r.routeId})...`);
+                    http:Response|error tripsResponse = transportService->get(string`/transport/trips/route/${r.routeId}`);
+                    if tripsResponse is http:Response {
+                        if tripsResponse.statusCode == 200 {
+                            json|error tripsJson = tripsResponse.getJsonPayload();
+                            if tripsJson is json && tripsJson is json[] {
+                                Trip[] routeTrips = check tripsJson.cloneWithType();
+                                foreach Trip t in routeTrips {
+                                    Trip updatedTrip = t;
+                                    updatedTrip.routeName = r.name;
+                                    allTrips.push(updatedTrip);
+                                }
+                            } else {
+                                io:println(string`❌ Invalid trips response format for route ${r.routeId}`);
+                            }
+                        } else {
+                            io:println(string`❌ Failed to fetch trips for route ${r.routeId} (Status ${tripsResponse.statusCode})`);
+                        }
+                    } else {
+                        io:println(string`❌ Error connecting to Transport Service for trips of route ${r.routeId}: ${tripsResponse.message()}`);
+                    }
+                }
+                return allTrips;
+            } else {
+                return error("Invalid routes response format");
+            }
+        } else {
+            return error(string`Failed to fetch routes (Status ${routesResponse.statusCode})`);
+        }
+    } else {
+        return error(string`Error connecting to Transport Service for routes: ${routesResponse.message()}`);
     }
 }
