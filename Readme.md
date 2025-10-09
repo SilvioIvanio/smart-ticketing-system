@@ -1,232 +1,112 @@
 # Smart Public Transport Ticketing System
 
-A distributed microservices-based ticketing platform for Windhoek City Council's buses and trains.
+A distributed, event‑driven ticketing platform for buses and trains, built with a microservices architecture for the Windhoek City Council.
+
+## Overview
+
+This system replaces paper tickets and siloed machines with modern digital purchase, validation, and monitoring flows across passengers, admins, and validators.
+
+### Problem
+
+- Limited purchase options for passengers
+- Validator failures cause delays
+- Poor visibility for administrators
+- No real‑time disruption notifications
+
+### Solution
+
+- Digital purchase and validation
+- Real‑time notifications and updates
+- Admin analytics and reports
+- Scales to peak demand via Kafka‑backed, fault‑tolerant microservices
+
+## Features
+
+### Passenger
+
+- Registration, login, profile
+- Browse routes and trips
+- Purchase single, daily, weekly tickets
+- Digital validation and status tracking
+- Real‑time alerts for disruptions
+
+### Administrator
+
+- Create and manage routes and trips
+- Vehicle assignment and activation
+- Real‑time sales and revenue reports
+- Publish service disruptions with severity
+
+### System
+
+- Event‑driven via Kafka topics
+- Fault tolerance and high availability
+- MongoDB persistence
+- Dockerized services with Compose orchestration
 
 ## Architecture
 
-- **6 Microservices** running in Docker containers
-- **Apache Kafka** for event-driven messaging
-- **MongoDB** for persistent data storage
-- **Docker Compose** for orchestration
+```
+CLIENTS (Passenger CLI | Admin CLI | Validator App)
+    │
+    ▼
+MICROSERVICES
+    Passenger :9090 | Ticketing :9091 | Payment :9092
+    Admin :9093     | Transport :9094 | Notification :9095
+        │
+        ▼
+INFRASTRUCTURE
+    Kafka (:9092, :29092) topics: ticket.requests, payments.processed,
+        schedule.updates, [ticket.events](http://ticket.events)
+    MongoDB (:27017) collections: users, routes, trips, tickets,
+        payments, disruptions
+```
 
-## Services
+### Event Flows
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Passenger Service | 9090 | User registration, login, ticket management |
-| Ticketing Service | 9091 | Ticket lifecycle management |
-| Transport Service | 9094 | Routes and trips management |
-| Admin Service | 9093 | Sales reports, disruption alerts |
-| Payment Service | - | Payment processing (background) |
-| Notification Service | - | Event notifications (background) |
+- Ticket purchase: Passenger → Ticketing → ticket.requests → Payment → payments.processed → Ticketing updates → Notification
+- Disruption: Admin → schedule.updates → Notification → affected passengers
+
+## Tech Stack
+
+| Technology | Version | Purpose |
+| --- | --- | --- |
+| Ballerina | 2201.12.10 | Services |
+| Apache Kafka | 3.x | Event streaming |
+| MongoDB | 7.x | Persistence |
+| Docker | 20.x+ | Containers |
+| Docker Compose | 2.x+ | Orchestration |
 
 ## Prerequisites
 
-- Docker Desktop
-- PowerShell (Windows)
-- 6GB RAM available
+- Ballerina 2201.12.10 (`bal version`)
+- Docker 20.x (`docker --version`)
+- Docker Compose 2.x (`docker compose version`)
+- Java 11+ (`java -version`)
 
 ## Quick Start
 
-### 1. Deploy System
-
-```powershell
-docker-compose up -d
-
-```
-
-
-
-
-### 2. Wait for Services (30 seconds)
-
-```powershell
-Start-Sleep -Seconds 30
-
-.......................................
-
-### 3. Run Demo
-
-```powershell
-.\\demo.ps1
-
-```
-
-### 4. Check Status
-
-```powershell
-docker-compose ps
-
-```
-
-All services should show "Up" status.
-
-### 5. View Logs
-
-```powershell
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f passenger-service
-
-```
-
-## Testing the System
-
-### Register a Passenger
-
-```powershell
-Invoke-RestMethod -Uri "<http://localhost:9090/passenger/register>" `
-  -Method Post `
-  -ContentType "application/json" `
-  -Body (@{
-    username = "John Doe"
-    email = "john@example.com"
-    password = "password123"
-  } | ConvertTo-Json)
-
-```
-
-### Create a Route
-
-```powershell
-Invoke-RestMethod -Uri "<http://localhost:9094/transport/routes>" `
-  -Method Post `
-  -ContentType "application/json" `
-  -Body (@{
-    name = "City Loop"
-    routeType = "bus"
-    stops = @("Station A", "Station B")
-    schedule = @{ weekdays = @("08:00") }
-  } | ConvertTo-Json)
-
-```
-
-### Get Sales Report
-
-```powershell
-Invoke-RestMethod -Uri "<http://localhost:9093/admin/reports/sales>"
-
-```
-
-## Data Persistence
-
-MongoDB data is persisted in Docker volume: `smart-ticketing-system_mongodb-data`
-
-### View MongoDB Data
-
-```powershell
-# Connect to MongoDB
-docker exec -it mongodb mongosh
-
-# Inside MongoDB shell
-use ticketing_db
-db.users.find().pretty()
-db.tickets.find().pretty()
-db.routes.find().pretty()
-exit
-
-```
-
-### View Kafka Messages
-
-```powershell
-# View ticket requests
-docker exec -it kafka kafka-console-consumer `
-  --bootstrap-server localhost:9092 `
-  --topic ticket.requests `
-  --from-beginning .....
-
-# View payment confirmations
-docker exec -it kafka kafka-console-consumer `
-  --bootstrap-server localhost:9092 `
-  --topic payments.processed `
-  --from-beginning
-
-```
-
-## Stopping the System
-
-```powershell
-# Stop all services
-docker-compose down
-
-# Stop and remove all data
-docker-compose down -v
-
-```
-
-## Troubleshooting
-
-### Services won't start
-
-```powershell
-# Check logs
-docker-compose logs passenger-service
-
-# Restart specific service
-docker-compose restart passenger-service
-
-```
-
-### Port conflicts
-
-```powershell
-# Check what's using ports
-netstat -ano | findstr ":9090"
-
-# Kill process
-taskkill /PID <PID> /F
-
-```
-
-### Reset everything
-
-```powershell
-docker-compose down -v
-docker system prune -f
-docker-compose up -d
-
-```
-
-## Architecture Diagram
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Passenger  │────▶│  Ticketing  │────▶│   Payment   │
-│   Service   │     │   Service   │     │   Service   │
-└─────────────┘     └─────────────┘     └─────────────┘
-       │                   │                     │
-       │                   ▼                     │
-       │            ┌─────────────┐             │
-       └───────────▶│    Kafka    │◀────────────┘
-                    └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │ Notification│
-                    │   Service   │
-                    └─────────────┘
-
-┌─────────────┐     ┌─────────────┐
-│  Transport  │     │    Admin    │
-│   Service   │     │   Service   │
-└─────────────┘     └─────────────┘
-       │                   │
-       └────────┬──────────┘
-                ▼
-         ┌─────────────┐
-         │   MongoDB   │
-         └─────────────┘
-
-```
-
-## Technologies Used
-
-- **Ballerina** - Service implementation
-- **Apache Kafka** - Message broker
-- **MongoDB** - NoSQL database
-- **Docker** - Containerization
-- **Docker Compose** - Orchestration
-  
+1. Clone and build
+    
+    ```bash
+    git clone <REPO_URL>
+    cd smart-ticketing-system
+    chmod +x [build-all.sh](http://build-all.sh) && ./[build-all.sh](http://build-all.sh)    # Linux/Mac
+    # or
+    ./build-all.bat                             # Windows
+    ```
+    
+2. Start infrastructure
+    
+    ```bash
+    docker compose up -d
+    docker compose ps
+    ```
+    
+3. Smoke test
+    
+    ```bash
+    chmod +x test_[system.sh](http://system.sh) && ./test_[system.sh](http://system.sh)     # Linux/Mac
+    # or
+    ./test_[system.ps](http://system.ps)1                               # Windows
+    ```
