@@ -209,7 +209,8 @@ function handleCreateTrip() returns error? {
             RouteInfo selectedRoute = routes[routeIndex - 1];
             routeId = selectedRoute.routeId;
             routeName = selectedRoute.name;
-            io:println(string`\n✅ Selected route: ${routeName}`);
+            io:println("");
+            io:println(string`✅ Selected route: ${routeName}`);
         } else {
             io:println("❌ Invalid route selection.");
             return;
@@ -358,19 +359,21 @@ function handleViewAllTrips() returns error? {
                                 hasTrips = true;
                             }
                             
-                            io:println(string`\n🛣️  Route: ${routeName}`);
+                            io:println("");
+                            io:println(string`🛣️  Route: ${routeName}`);
                             foreach json trip in tripsJson {
-                                string tripId = check trip.tripId.ensureType();
-                                string departureTime = check trip.departureTime.ensureType();
-                                string arrivalTime = check trip.arrivalTime.ensureType();
-                                string vehicleId = check trip.vehicleId.ensureType();
-                                string status = check trip.status.ensureType();
+                                // Safer extraction with error handling
+                                string|error tripId = trip.tripId.ensureType();
+                                string|error departureTime = trip.departureTime.ensureType();
+                                string|error arrivalTime = trip.arrivalTime.ensureType();
+                                string|error vehicleId = trip.vehicleId.ensureType();
+                                string|error status = trip.status.ensureType();
                                 
-                                io:println(string`   🚌 Trip ID: ${tripId}`);
-                                io:println(string`      Vehicle: ${vehicleId}`);
-                                io:println(string`      Departure: ${departureTime}`);
-                                io:println(string`      Arrival: ${arrivalTime}`);
-                                io:println(string`      Status: ${status}`);
+                                io:println(string`   🚌 Trip ID: ${tripId is string ? tripId : "N/A"}`);
+                                io:println(string`      Vehicle: ${vehicleId is string ? vehicleId : "N/A"}`);
+                                io:println(string`      Departure: ${departureTime is string ? departureTime : "N/A"}`);
+                                io:println(string`      Arrival: ${arrivalTime is string ? arrivalTime : "N/A"}`);
+                                io:println(string`      Status: ${status is string ? status : "N/A"}`);
                                 io:println("   ───────────────────────────────────────────────────────");
                             }
                         }
@@ -473,7 +476,8 @@ function handlePublishDisruption() returns error? {
             RouteInfo selectedRoute = routes[routeIndex - 1];
             routeId = selectedRoute.routeId;
             routeName = selectedRoute.name;
-            io:println(string`\n✅ Selected route: ${routeName}`);
+            io:println("");
+            io:println(string`✅ Selected route: ${routeName}`);
         } else {
             io:println("❌ Invalid route selection.");
             return;

@@ -415,10 +415,26 @@ function handleViewTickets(string userId) returns error? {
         if statusCode == 200 {
             json|error responseJson = userTicketsResponse.getJsonPayload();
             if responseJson is json {
-                io:println("\n✅ Your Tickets:");
-                io:println("═══════════════════════════════════════════════════════════");
-                io:println(responseJson.toJsonString());
-                io:println("═══════════════════════════════════════════════════════════");
+                if responseJson is json[] && responseJson.length() > 0 {
+                    io:println("\n✅ Your Tickets:");
+                    io:println("═══════════════════════════════════════════════════════════");
+                    foreach json ticket in responseJson {
+                        string|error ticketId = ticket.ticketId.ensureType();
+                        string|error tripId = ticket.tripId.ensureType();
+                        string|error ticketType = ticket.ticketType.ensureType();
+                        string|error status = ticket.status.ensureType();
+                        
+                        io:println(string`🎫 Ticket ID: ${ticketId is string ? ticketId : "N/A"}`);
+                        io:println(string`   Trip ID: ${tripId is string ? tripId : "N/A"}`);
+                        io:println(string`   Type: ${ticketType is string ? ticketType : "N/A"}`);
+                        io:println(string`   Status: ${status is string ? status : "N/A"}`);
+                        io:println("───────────────────────────────────────────────────────────");
+                    }
+                    io:println("═══════════════════════════════════════════════════════════");
+                } else {
+                    io:println("\n📭 You don't have any tickets yet.");
+                    io:println("💡 Purchase a ticket to get started!");
+                }
             } else {
                 io:println("❌ Invalid response format");
             }
@@ -460,30 +476,41 @@ function fetchAvailableTrips() returns TripInfo[]|error {
                     TripInfo[] allTrips = [];
 
                     foreach json routeJson in routesJson {
-                        string routeId = check routeJson.routeId.ensureType();
-                        string routeName = check routeJson.name.ensureType();
+                        string|error routeId = routeJson.routeId.ensureType();
+                        string|error routeName = routeJson.name.ensureType();
                         
-                        http:Response|error tripsResponse = transportService->get(string`/transport/trips/route/${routeId}`);
-                        
-                        if tripsResponse is http:Response {
-                            if tripsResponse.statusCode == 200 {
-                                json|error tripsJson = tripsResponse.getJsonPayload();
-                                if tripsJson is json {
-                                    if tripsJson is json[] {
-                                        foreach json tripJson in tripsJson {
-                                            string tripId = check tripJson.tripId.ensureType();
-                                            string departureTime = check tripJson.departureTime.ensureType();
-                                            string arrivalTime = check tripJson.arrivalTime.ensureType();
-                                            string vehicleId = check tripJson.vehicleId.ensureType();
-                                            
-                                            TripInfo trip = {
-                                                tripId: tripId,
-                                                routeName: routeName,
-                                                departureTime: departureTime,
-                                                arrivalTime: arrivalTime,
-                                                vehicleId: vehicleId
-                                            };
-                                            allTrips.push(trip);
+                        if routeId is string && routeName is string {
+                            http:Response|error tripsResponse = transportService->get(string`/transport/trips/route/${routeId}`);
+                            
+                            if tripsResponse is http:Response {
+                                if tripsResponse.statusCode == 200 {
+                                    json|error tripsJson = tripsResponse.getJsonPayload();
+                                    if tripsJson is json {
+                                        if tripsJson is json[] {
+                                            foreach json tripJson in tripsJson {
+                                                string|error tripId = tripJson.tripId.ensureType();
+                                                string|error departureTime = tripJson.departureTime.ensureType();
+                                                string|error arrivalTime = tripJson.arrivalTime.ensureType();
+                                                string|error vehicleId = tripJson.vehicleId.ensureType();
+                                                
+                                                // More lenient - use defaults if type cast fails
+                                                string tripIdStr = tripId is string ? tripId : "";
+                                                string departureTimeStr = departureTime is string ? departureTime : "Scheduled";
+                                                string arrivalTimeStr = arrivalTime is string ? arrivalTime : "Scheduled";
+                                                string vehicleIdStr = vehicleId is string ? vehicleId : "TBA";
+                                                
+                                                // Only require tripId to be valid
+                                                if tripIdStr != "" {
+                                                    TripInfo trip = {
+                                                        tripId: tripIdStr,
+                                                        routeName: routeName,
+                                                        departureTime: departureTimeStr,
+                                                        arrivalTime: arrivalTimeStr,
+                                                        vehicleId: vehicleIdStr
+                                                    };
+                                                    allTrips.push(trip);
+                                                }
+                                            }
                                         }
                                     }
                                 }
