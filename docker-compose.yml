@@ -51,8 +51,8 @@ services:
       - "9090:9090"
     command: >
       java 
-      -Csilvi.passenger_service.mongoHost="mongodb://mongodb:27017" 
-      -Csilvi.passenger_service.dbName="ticketing_db" 
+      -Bsilvi.passenger_service.mongoHost="mongodb://mongodb:27017" 
+      -Bsilvi.passenger_service.dbName="ticketing_db" 
       -jar passenger_service.jar
     depends_on:
       - mongodb
@@ -70,9 +70,9 @@ services:
       - "9091:9091"
     command: >
       java 
-      -Csilvi.ticketing_service.kafkaBootstrap="kafka:9092" 
-      -Csilvi.ticketing_service.mongoHost="mongodb://mongodb:27017" 
-      -Csilvi.ticketing_service.dbName="ticketing_db" 
+      -Bsilvi.ticketing_service.kafkaBootstrap="kafka:9092" 
+      -Bsilvi.ticketing_service.mongoHost="mongodb://mongodb:27017" 
+      -Bsilvi.ticketing_service.dbName="ticketing_db" 
       -jar ticketing_service.jar
     depends_on:
       - kafka
@@ -89,9 +89,9 @@ services:
       - ./services/payment-service/payment_service/target/bin:/app
     command: >
       java 
-      -Csilvi.payment_service.kafkaBootstrap="kafka:9092" 
-      -Csilvi.payment_service.mongoHost="mongodb://mongodb:27017" 
-      -Csilvi.payment_service.dbName="ticketing_db" 
+      -Bsilvi.payment_service.kafkaBootstrap="kafka:9092" 
+      -Bsilvi.payment_service.mongoHost="mongodb://mongodb:27017" 
+      -Bsilvi.payment_service.dbName="ticketing_db" 
       -jar payment_service.jar
     depends_on:
       - kafka
@@ -110,9 +110,9 @@ services:
       - "9094:9092"
     command: >
       java 
-      -Csilvi.transport_service.kafkaBootstrap="kafka:9092" 
-      -Csilvi.transport_service.mongoHost="mongodb://mongodb:27017" 
-      -Csilvi.transport_service.dbName="ticketing_db" 
+      -Bsilvi.transport_service.kafkaBootstrap="kafka:9092" 
+      -Bsilvi.transport_service.mongoHost="mongodb://mongodb:27017" 
+      -Bsilvi.transport_service.dbName="ticketing_db" 
       -jar transport_service.jar
     depends_on:
       - kafka
@@ -129,7 +129,7 @@ services:
       - ./services/notification-service/notification_service/target/bin:/app
     command: >
       java 
-      -Csilvi.notification_service.kafkaBootstrap="kafka:9092" 
+      -Bsilvi.notification_service.kafkaBootstrap="kafka:9092" 
       -jar notification_service.jar
     depends_on:
       - kafka
@@ -147,9 +147,9 @@ services:
       - "9093:9093"
     command: >
       java 
-      -Csilvi.admin_service.kafkaBootstrap="kafka:9092" 
-      -Csilvi.admin_service.mongoHost="mongodb://mongodb:27017" 
-      -Csilvi.admin_service.dbName="ticketing_db" 
+      -Bsilvi.admin_service.kafkaBootstrap="kafka:9092" 
+      -Bsilvi.admin_service.mongoHost="mongodb://mongodb:27017" 
+      -Bsilvi.admin_service.dbName="ticketing_db" 
       -jar admin_service.jar
     depends_on:
       - kafka
