@@ -1,7 +1,6 @@
 import ballerina/io;
 import ballerina/http;
-import ballerina/json;
-import ballerina/time;
+import ballerina/regex;
 
 // Client endpoints for the services
 final http:Client transportService = check new ("http://localhost:9094");
@@ -63,7 +62,7 @@ function handleCreateRoute() returns error? {
     string? stopsStr = io:readln();
 
     if name is string && routeType is string && stopsStr is string {
-        string[] stops = stopsStr.split(",").map(s => s.trim());
+        string[] stops = regex:split(stopsStr, ",").map(s => s.trim());
         // For simplicity, schedule is hardcoded. In a real app, this would be user input.
         json schedule = {
             "weekdays": ["08:00", "17:00"],
@@ -77,9 +76,9 @@ function handleCreateRoute() returns error? {
         };
         do {
             http:Response routeResponse = check transportService->post("/transport/routes", routePayload);
-            string responseString = check routeResponse.getJsonPayload().toJsonString();
+            json responseJson = check routeResponse.getJsonPayload();
             io:println("Route creation successful:");
-            io:println(responseString);
+            io:println(responseJson.toJsonString());
         } on fail error err {
             io:println(string`Error creating route: ${err.message()}`);
         }
@@ -108,9 +107,9 @@ function handleCreateTrip() returns error? {
         };
         do {
             http:Response tripResponse = check transportService->post("/transport/trips", tripPayload);
-            string responseString = check tripResponse.getJsonPayload().toJsonString();
+            json responseJson = check tripResponse.getJsonPayload();
             io:println("Trip creation successful:");
-            io:println(responseString);
+            io:println(responseJson.toJsonString());
         } on fail error err {
             io:println(string`Error creating trip: ${err.message()}`);
         }
@@ -123,9 +122,9 @@ function handleSalesReport() returns error? {
     io:println("\n--- Generate Sales Report ---");
     do {
         http:Response salesReportResponse = check adminService->get("/admin/reports/sales");
-        string responseString = check salesReportResponse.getJsonPayload().toJsonString();
+        json responseJson = check salesReportResponse.getJsonPayload();
         io:println("Sales Report:");
-        io:println(responseString);
+        io:println(responseJson.toJsonString());
     } on fail error err {
         io:println(string`Error generating sales report: ${err.message()}`);
     }
@@ -148,9 +147,9 @@ function handlePublishDisruption() returns error? {
         };
         do {
             http:Response disruptionResponse = check adminService->post("/admin/disruptions", disruptionPayload);
-            string responseString = check disruptionResponse.getJsonPayload().toJsonString();
+            json responseJson = check disruptionResponse.getJsonPayload();
             io:println("Disruption published successfully:");
-            io:println(responseString);
+            io:println(responseJson.toJsonString());
         } on fail error err {
             io:println(string`Error publishing disruption: ${err.message()}`);
         }

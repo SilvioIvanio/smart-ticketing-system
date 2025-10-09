@@ -1,6 +1,5 @@
 import ballerina/io;
 import ballerina/http;
-import ballerina/json;
 
 // Client endpoints for the services
 final http:Client passengerService = check new ("http://localhost:9090");
@@ -37,15 +36,17 @@ public function main() returns error? {
                     check handleLogin();
                 }
                 "buy_ticket" => {
-                    if loggedInUserId is string {
-                        check handleBuyTicket(loggedInUserId);
+                    string? userId = loggedInUserId;
+                    if userId is string {
+                        check handleBuyTicket(userId);
                     } else {
                         io:println("Please log in to buy a ticket.");
                     }
                 }
                 "view_tickets" => {
-                    if loggedInUserId is string {
-                        check handleViewTickets(loggedInUserId);
+                    string? userId = loggedInUserId;
+                    if userId is string {
+                        check handleViewTickets(userId);
                     } else {
                         io:println("Please log in to view tickets.");
                     }
@@ -82,9 +83,9 @@ function handleRegister() returns error? {
         };
         do {
             http:Response registerResponse = check passengerService->post("/passenger/register", registerPayload);
-            string responseString = check registerResponse.getJsonPayload().toJsonString();
+            json responseJson = check registerResponse.getJsonPayload();
             io:println("Registration successful:");
-            io:println(responseString);
+            io:println(responseJson.toJsonString());
         } on fail error err {
             io:println(string`Error during registration: ${err.message()}`);
         }
@@ -108,10 +109,11 @@ function handleLogin() returns error? {
         do {
             http:Response loginResponse = check passengerService->post("/passenger/login", loginPayload);
             json loginJson = check loginResponse.getJsonPayload();
-            loggedInUserId = check loginJson.userId.ensureType();
+            string userId = check loginJson.userId.ensureType();
+            loggedInUserId = userId;
             io:println("Login successful:");
             io:println(loginJson.toJsonString());
-            io:println(string`👤 Logged in User ID: ${loggedInUserId}`);
+            io:println(string`👤 Logged in User ID: ${userId}`);
         } on fail error err {
             io:println(string`Error during login: ${err.message()}`);
             loggedInUserId = (); // Clear userId on failed login
@@ -131,7 +133,11 @@ function handleBuyTicket(string userId) returns error? {
     string? priceStr = io:readln();
 
     if tripId is string && ticketType is string && priceStr is string {
-        decimal price = check decimal:fromString(priceStr);
+        decimal|error price = decimal:fromString(priceStr);
+        if price is error {
+            io:println("Invalid price format. Please enter a valid number.");
+            return;
+        }
         json ticketPayload = {
             "userId": userId,
             "tripId": tripId,
@@ -157,9 +163,9 @@ function handleViewTickets(string userId) returns error? {
     io:println("\n--- View My Tickets ---");
     do {
         http:Response userTicketsResponse = check passengerService->get(string`/passenger/tickets/${userId}`);
-        string responseString = check userTicketsResponse.getJsonPayload().toJsonString();
+        json responseJson = check userTicketsResponse.getJsonPayload();
         io:println("Your tickets:");
-        io:println(responseString);
+        io:println(responseJson.toJsonString());
     } on fail error err {
         io:println(string`Error viewing tickets: ${err.message()}`);
     }
