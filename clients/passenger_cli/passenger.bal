@@ -144,7 +144,7 @@ function handleLogin() returns error? {
         if loginResponse is http:Response {
             int statusCode = loginResponse.statusCode;
             
-            if statusCode == 200 {
+            if statusCode == 200 || statusCode == 201 {
                 json|error loginJson = loginResponse.getJsonPayload();
                 if loginJson is json {
                     string|error userId = loginJson.userId.ensureType();
