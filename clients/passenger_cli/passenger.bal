@@ -273,6 +273,7 @@ function handleBuyTicket(string userId) returns error? {
     } else {
         io:println("❌ Invalid input.");
     }
+    return;
 }
 
 function handleViewTickets(string userId) returns error? {
