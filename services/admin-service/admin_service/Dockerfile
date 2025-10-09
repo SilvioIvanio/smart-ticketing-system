@@ -1,4 +1,4 @@
-FROM ballerina/jre11:v1
+FROM ballerina/jre17:v1
 WORKDIR /home/ballerina
 
 # Copy the built JAR file and config
