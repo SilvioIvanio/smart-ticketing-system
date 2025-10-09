@@ -41,7 +41,8 @@ services:
     networks:
       - ticketing-network
 
-      image: eclipse-temurin:21-jre
+  passenger-service:
+    image: eclipse-temurin:21-jre
     container_name: passenger-service
     working_dir: /app
     volumes:
@@ -59,7 +60,7 @@ services:
     restart: unless-stopped
 
   ticketing-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:21-jre
     container_name: ticketing-service
     working_dir: /app
     volumes:
@@ -78,7 +79,7 @@ services:
     restart: unless-stopped
 
   payment-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:21-jre
     container_name: payment-service
     working_dir: /app
     volumes:
@@ -96,7 +97,7 @@ services:
     restart: unless-stopped
 
   transport-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:21-jre
     container_name: transport-service
     working_dir: /app
     volumes:
@@ -116,7 +117,7 @@ services:
     restart: unless-stopped
 
   notification-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:21-jre
     container_name: notification-service
     working_dir: /app
     volumes:
@@ -133,7 +134,7 @@ services:
     restart: unless-stopped
 
   admin-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:21-jre
     container_name: admin-service
     working_dir: /app
     volumes:
