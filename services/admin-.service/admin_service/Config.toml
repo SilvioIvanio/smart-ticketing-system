@@ -1,3 +1,0 @@
-mongoHost="mongodb://mongodb:27017"
-dbName="ticketing_db"
-kafkaBootstrap="kafka:9092"
