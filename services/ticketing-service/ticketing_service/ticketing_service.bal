@@ -5,28 +5,22 @@ import ballerina/log;
 import ballerinax/mongodb;
 import ballerinax/kafka;
 
-// Configuration
 configurable string kafkaBootstrap = ?;
 configurable string mongoHost = ?;
 configurable string dbName = ?;
 
-// MongoDB client
 mongodb:Client mongoClient = check new ({
     connection: mongoHost
 });
 
-// Kafka producer (sends messages)
 kafka:Producer kafkaProducer = check new (kafkaBootstrap, {
     clientId: "ticketing-producer",
     acks: "all",
     retryCount: 3
 });
 
-// HTTP service on port 9091
 service /ticketing on new http:Listener(9091) {
 
-    // Endpoint: POST /ticketing/tickets
-    // Purpose: Create a new ticket
     resource function post tickets(@http:Payload json ticketData)
             returns json|error {
 
@@ -38,7 +32,6 @@ service /ticketing on new http:Listener(9091) {
         string ticketId = uuid:createType1AsString();
         string ticketType = check ticketData.ticketType;
 
-        // Determine rides based on ticket type
         int rides = ticketType == "single" ? 1 : (ticketType == "multi" ? 10 : 30);
 
         Ticket newTicket = {
@@ -49,16 +42,14 @@ service /ticketing on new http:Listener(9091) {
             status: "CREATED",
             price: check ticketData.price,
             validFrom: time:utcNow(),
-            validUntil: time:utcAddSeconds(time:utcNow(), 86400), // 24 hours
+            validUntil: time:utcAddSeconds(time:utcNow(), 86400),
             ridesRemaining: rides,
             createdAt: time:utcNow(),
             updatedAt: time:utcNow()
         };
 
-        // Save to database
         check tickets->insertOne(newTicket);
 
-        // Send message to Kafka for payment processing
         TicketRequest request = {
             ticketId: ticketId,
             userId: newTicket.userId,
@@ -82,8 +73,101 @@ service /ticketing on new http:Listener(9091) {
         };
     }
 
-    // Endpoint: POST /ticketing/validate
-    // Purpose: Validate a ticket when passenger boards
+    // ADDED: New endpoint for path-based validation
+    resource function post tickets/[string ticketId]/validate() returns json|error {
+
+        log:printInfo("Validating ticket: " + ticketId);
+
+        mongodb:Database db = check mongoClient->getDatabase(dbName);
+        mongodb:Collection tickets = check db->getCollection("tickets");
+
+        stream<Ticket, error?> ticketStream = check tickets->find({ticketId: ticketId});
+        Ticket[]? foundTickets = check from Ticket t in ticketStream select t;
+
+        if foundTickets is () || foundTickets.length() == 0 {
+            log:printWarn("Ticket not found: " + ticketId);
+            return {
+                "success": false,
+                "error": "Ticket not found"
+            };
+        }
+
+        Ticket ticket = foundTickets[0];
+
+        if ticket.status != "PAID" && ticket.status != "VALIDATED" {
+            log:printWarn("Ticket not paid: " + ticketId);
+            return {
+                "success": false,
+                "error": "Ticket must be paid before validation",
+                "currentStatus": ticket.status
+            };
+        }
+
+        time:Utc now = time:utcNow();
+        decimal diff = time:utcDiffSeconds(ticket.validUntil, now);
+
+        if diff < 0d {
+            log:printWarn("Ticket expired: " + ticketId);
+            
+            _ = check tickets->updateOne(
+                {ticketId: ticketId},
+                {"$set": {"status": "EXPIRED", "updatedAt": now}}
+            );
+            
+            return {
+                "success": false,
+                "error": "Ticket has expired",
+                "expiredAt": ticket.validUntil
+            };
+        }
+
+        int remaining = ticket.ridesRemaining ?: 0;
+        if remaining <= 0 {
+            log:printWarn("No rides remaining: " + ticketId);
+            return {
+                "success": false,
+                "error": "No rides remaining on this ticket"
+            };
+        }
+
+        int newRemaining = remaining - 1;
+        string newStatus = newRemaining > 0 ? "VALIDATED" : "EXPIRED";
+
+        _ = check tickets->updateOne(
+            {ticketId: ticketId},
+            {
+                "$set": {
+                    "ridesRemaining": newRemaining,
+                    "status": newStatus,
+                    "updatedAt": now
+                }
+            }
+        );
+
+        json validationEvent = {
+            "ticketId": ticketId,
+            "userId": ticket.userId,
+            "status": "VALIDATED",
+            "timestamp": now
+        };
+
+        check kafkaProducer->send({
+            topic: "ticket.validated",
+            value: validationEvent.toJsonString().toBytes()
+        });
+
+        log:printInfo("Ticket validated: " + ticketId);
+
+        return {
+            "success": true,
+            "ticketId": ticketId,
+            "ridesRemaining": newRemaining,
+            "status": newStatus,
+            "message": "Ticket validated successfully"
+        };
+    }
+
+    // Keep the old validate endpoint for backward compatibility
     resource function post validate(@http:Payload TicketValidation validation)
             returns json|http:BadRequest|error {
 
@@ -92,7 +176,6 @@ service /ticketing on new http:Listener(9091) {
         mongodb:Database db = check mongoClient->getDatabase(dbName);
         mongodb:Collection tickets = check db->getCollection("tickets");
 
-        // Find the ticket
         stream<Ticket, error?> ticketStream = check tickets->find({ticketId: validation.ticketId});
         Ticket[]? foundTickets = check from Ticket t in ticketStream select t;
 
@@ -103,7 +186,6 @@ service /ticketing on new http:Listener(9091) {
 
         Ticket ticket = foundTickets[0];
 
-        // Check if ticket is paid
         if ticket.status != "PAID" && ticket.status != "VALIDATED" {
             log:printWarn("Ticket not paid: " + validation.ticketId);
             return {
@@ -112,7 +194,6 @@ service /ticketing on new http:Listener(9091) {
             };
         }
 
-        // Check if expired
         time:Utc now = time:utcNow();
         decimal diff = time:utcDiffSeconds(ticket.validUntil, now);
 
@@ -130,7 +211,6 @@ service /ticketing on new http:Listener(9091) {
             };
         }
 
-        // Check remaining rides
         int remaining = ticket.ridesRemaining ?: 0;
         if remaining <= 0 {
             log:printWarn("No rides remaining: " + validation.ticketId);
@@ -139,7 +219,6 @@ service /ticketing on new http:Listener(9091) {
             };
         }
 
-        // Update ticket
         int newRemaining = remaining - 1;
         string newStatus = newRemaining > 0 ? "VALIDATED" : "EXPIRED";
 
@@ -154,7 +233,6 @@ service /ticketing on new http:Listener(9091) {
             }
         );
 
-        // Send validation event to Kafka
         check kafkaProducer->send({
             topic: "ticket.validated",
             value: validation.toJsonString().toBytes()
@@ -170,8 +248,6 @@ service /ticketing on new http:Listener(9091) {
         };
     }
 
-    // Endpoint: GET /ticketing/tickets/{ticketId}
-    // Purpose: Get ticket details
     resource function get tickets/[string ticketId]() returns Ticket|http:NotFound|error {
 
         log:printInfo("Fetching ticket: " + ticketId);
@@ -190,7 +266,6 @@ service /ticketing on new http:Listener(9091) {
     }
 }
 
-// Kafka Consumer - listens for payment confirmations
 listener kafka:Listener paymentListener = check new (kafkaBootstrap, {
     groupId: "ticketing-service-group",
     topics: ["payments.processed"]
@@ -198,7 +273,6 @@ listener kafka:Listener paymentListener = check new (kafkaBootstrap, {
 
 service kafka:Service on paymentListener {
 
-    // FIX: Use byte[] instead of ConsumerRecord
     remote function onConsumerRecord(kafka:Caller caller,
                                      kafka:BytesConsumerRecord[] records) returns error? {
 
@@ -206,7 +280,6 @@ service kafka:Service on paymentListener {
         mongodb:Collection tickets = check db->getCollection("tickets");
 
         foreach var rec in records {
-            // FIX: Properly handle the conversion from bytes to string to json
             string payloadStr = check string:fromBytes(rec.value);
             json payload = check payloadStr.fromJsonString();
 
