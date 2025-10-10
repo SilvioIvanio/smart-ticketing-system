@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Smart Public Transport Ticketing System - Build All Services
+# Smart Public Transport Ticketing System - Build All Services (Linux/Mac)
 # ==============================================================================
 # This script builds all 6 microservices
 # ==============================================================================
