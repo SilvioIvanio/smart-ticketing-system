@@ -227,7 +227,7 @@ chmod +x test.sh
 ### Windows (PowerShell):
 
 ```powershell
-.\\\\test.ps1
+.\test.ps1
 
 ```
 
