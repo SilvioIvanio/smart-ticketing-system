@@ -189,7 +189,9 @@ cd smart-ticketing-system
 
 ### 2. Launch Docker and verify the engine is running
 
-### 3.Docker Compose
+<img width="512" height="68" alt="image" src="https://github.com/user-attachments/assets/6667c2f6-9171-4f9b-895b-23ef3be4d23e" />
+
+### 3. Docker Compose
 
 Start all services with a single command:
 
