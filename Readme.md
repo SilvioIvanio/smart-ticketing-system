@@ -2,14 +2,6 @@
 
 A distributed, event-driven smart ticketing system for public transport (buses and trains) built with microservices architecture, designed for the Windhoek City Council.
 
-[Ballerina](https://img.shields.io/badge/Ballerina-2201.12.10-blue)
-
-[Kafka](https://img.shields.io/badge/Apache%20Kafka-3.x-black)
-
-[MongoDB](https://img.shields.io/badge/MongoDB-7.x-green)
-
-[Docker](https://img.shields.io/badge/Docker-Compose-blue)
-
 ## 🎯 Overview
 
 This project implements a modern, scalable ticketing platform that replaces outdated paper-based and standalone machine systems. It provides seamless experiences for passengers, administrators, and validators through a distributed microservices architecture.
