@@ -1,15 +1,24 @@
 import ballerina/io;
 import ballerina/http;
+import ballerina/lang.runtime;
 
-// Client endpoints for the services
 final http:Client passengerService = check new ("http://localhost:9090");
 final http:Client ticketingService = check new ("http://localhost:9091");
 final http:Client transportService = check new ("http://localhost:9094");
+final http:Client notificationService = check new ("http://localhost:9095");
 
-// Global variables to store logged-in user information
 string? loggedInUserId = ();
 string? loggedInUsername = ();
 string? loggedInEmail = ();
+
+// Type definitions
+type TripInfo record {
+    string tripId;
+    string routeName;
+    string vehicleId;
+    string departureTime;
+    string arrivalTime;
+};
 
 public function main() returns error? {
     io:println("\n");
@@ -20,10 +29,8 @@ public function main() returns error? {
     boolean running = true;
     while running {
         if loggedInUserId is string {
-            // Logged-in menu
             showLoggedInMenu();
         } else {
-            // Logged-out menu
             showLoggedOutMenu();
         }
 
@@ -32,10 +39,8 @@ public function main() returns error? {
 
         if command is string {
             if loggedInUserId is string {
-                // Handle logged-in commands
                 running = check handleLoggedInCommand(command.trim());
             } else {
-                // Handle logged-out commands
                 running = check handleLoggedOutCommand(command.trim());
             }
         } else {
@@ -69,12 +74,12 @@ function showLoggedInMenu() {
     io:println("╠════════════════════════════════════════════╣");
     io:println("║  1. 🎫 Purchase ticket                     ║");
     io:println("║  2. 📋 View my tickets                     ║");
-    io:println("║  3. 🔓 Logout                              ║");
+    io:println("║  3. 🔔 View notifications                  ║");
+    io:println("║  4. 🔓 Logout                              ║");
     io:println("║  0. 🚪 Exit                                ║");
     io:println("╚════════════════════════════════════════════╝");
 }
 
-// Helper function to pad strings for menu alignment
 function padRight(string str, int length) returns string {
     int currentLength = str.length();
     if currentLength >= length {
@@ -98,13 +103,13 @@ function handleLoggedOutCommand(string command) returns boolean|error {
             check handleLogin();
         }
         "0" => {
-            return false; // Exit
+            return false;
         }
         _ => {
             io:println("❌ Invalid choice. Please select 1, 2, or 0.");
         }
     }
-    return true; // Continue running
+    return true;
 }
 
 function handleLoggedInCommand(string command) returns boolean|error {
@@ -122,16 +127,22 @@ function handleLoggedInCommand(string command) returns boolean|error {
             }
         }
         "3" => {
+            string? userId = loggedInUserId;
+            if userId is string {
+                check handleViewNotifications(userId);
+            }
+        }
+        "4" => {
             handleLogout();
         }
         "0" => {
-            return false; // Exit
+            return false;
         }
         _ => {
-            io:println("❌ Invalid choice. Please select 1, 2, 3, or 0.");
+            io:println("❌ Invalid choice. Please select 1, 2, 3, 4, or 0.");
         }
     }
-    return true; // Continue running
+    return true;
 }
 
 function handleLogout() {
@@ -273,6 +284,39 @@ function handleLogin() returns error? {
     }
 }
 
+function fetchAvailableTrips() returns TripInfo[]|error {
+    http:Response|error tripsResponse = transportService->get("/transport/trips");
+    
+    if tripsResponse is http:Response {
+        if tripsResponse.statusCode == 200 {
+            json|error tripsJson = tripsResponse.getJsonPayload();
+            if tripsJson is json[] {
+                TripInfo[] trips = [];
+                foreach json trip in tripsJson {
+                    string|error tripId = trip.tripId.ensureType();
+                    string|error routeId = trip.routeId.ensureType();
+                    string|error vehicleId = trip.vehicleId.ensureType();
+                    string|error departureTime = trip.departureTime.ensureType();
+                    string|error arrivalTime = trip.arrivalTime.ensureType();
+                    
+                    if tripId is string && routeId is string && vehicleId is string && 
+                       departureTime is string && arrivalTime is string {
+                        trips.push({
+                            tripId: tripId,
+                            routeName: routeId,
+                            vehicleId: vehicleId,
+                            departureTime: departureTime,
+                            arrivalTime: arrivalTime
+                        });
+                    }
+                }
+                return trips;
+            }
+        }
+    }
+    return [];
+}
+
 function handleBuyTicket(string userId) returns error? {
     io:println("\n╔════════════════════════════════════════════╗");
     io:println("║           🎫 Purchase Ticket               ║");
@@ -293,7 +337,7 @@ function handleBuyTicket(string userId) returns error? {
 
     io:println("\n✅ Available Trips:");
     io:println("═══════════════════════════════════════════════════════════");
-    foreach int i in 0..<availableTrips.length() {
+    foreach int i in 0 ..< availableTrips.length() {
         TripInfo t = availableTrips[i];
         io:println(string`  [${i + 1}] ${t.routeName}`);
         io:println(string`      🚌 Vehicle: ${t.vehicleId}`);
@@ -364,7 +408,9 @@ function handleBuyTicket(string userId) returns error? {
                         json|error ticketJson = ticketResponse.getJsonPayload();
                         if ticketJson is json {
                             string|error ticketId = ticketJson.ticketId.ensureType();
-                            io:println("\n✅ Ticket purchased successfully!");
+                            string|error ticketStatus = ticketJson.status.ensureType();
+                            
+                            io:println("\n✅ Ticket created successfully!");
                             io:println("═══════════════════════════════════════════════════════════");
                             if ticketId is string {
                                 io:println(string`🎫 Ticket ID: ${ticketId}`);
@@ -372,7 +418,34 @@ function handleBuyTicket(string userId) returns error? {
                             io:println(string`🚌 Route: ${selectedTrip.routeName}`);
                             io:println(string`📝 Type: ${ticketType}`);
                             io:println(string`💰 Price: $${price}`);
+                            if ticketStatus is string {
+                                io:println(string`📊 Status: ${ticketStatus}`);
+                            }
                             io:println("═══════════════════════════════════════════════════════════");
+                            
+                            if ticketId is string {
+                                io:println("\n⏳ Waiting for payment processing...");
+                                runtime:sleep(3);
+                                
+                                http:Response|error statusResponse = ticketingService->get(string`/ticketing/tickets/${ticketId}`);
+                                
+                                if statusResponse is http:Response && statusResponse.statusCode == 200 {
+                                    json|error updatedTicket = statusResponse.getJsonPayload();
+                                    if updatedTicket is json {
+                                        string|error updatedStatus = updatedTicket.status.ensureType();
+                                        if updatedStatus is string {
+                                            if updatedStatus == "PAID" {
+                                                io:println("\n💳 Payment processed successfully!");
+                                                io:println("✅ Your ticket status is now: PAID");
+                                                io:println("🎉 You're all set! Safe travels!");
+                                            } else {
+                                                io:println(string`\n📊 Current status: ${updatedStatus}`);
+                                                io:println("💡 Payment may still be processing...");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             io:println("✅ Ticket created successfully!");
                         }
@@ -400,6 +473,27 @@ function handleBuyTicket(string userId) returns error? {
     }
 }
 
+function getStatusEmoji(string status) returns string {
+    match status {
+        "CREATED" => { return "⏳"; }
+        "PAID" => { return "💳"; }
+        "VALIDATED" => { return "✅"; }
+        "EXPIRED" => { return "⏰"; }
+        _ => { return "📋"; }
+    }
+}
+
+function getNotificationIcon(string notificationType) returns string {
+    match notificationType {
+        "TICKET_CREATED" => { return "🎫"; }
+        "PAYMENT_CONFIRMED" => { return "💳"; }
+        "TICKET_VALIDATED" => { return "✅"; }
+        "SCHEDULE_UPDATE" => { return "🚌"; }
+        "DISRUPTION" => { return "⚠️"; }
+        _ => { return "🔔"; }
+    }
+}
+
 function handleViewTickets(string userId) returns error? {
     io:println("\n╔════════════════════════════════════════════╗");
     io:println("║           📋 My Tickets                    ║");
@@ -424,10 +518,12 @@ function handleViewTickets(string userId) returns error? {
                         string|error ticketType = ticket.ticketType.ensureType();
                         string|error status = ticket.status.ensureType();
                         
+                        string statusDisplay = status is string ? getStatusEmoji(status) + " " + status : "N/A";
+                        
                         io:println(string`🎫 Ticket ID: ${ticketId is string ? ticketId : "N/A"}`);
                         io:println(string`   Trip ID: ${tripId is string ? tripId : "N/A"}`);
                         io:println(string`   Type: ${ticketType is string ? ticketType : "N/A"}`);
-                        io:println(string`   Status: ${status is string ? status : "N/A"}`);
+                        io:println(string`   Status: ${statusDisplay}`);
                         io:println("───────────────────────────────────────────────────────────");
                     }
                     io:println("═══════════════════════════════════════════════════════════");
@@ -456,78 +552,57 @@ function handleViewTickets(string userId) returns error? {
     }
 }
 
-// Simplified record type for displaying trip information
-type TripInfo record {
-    string tripId;
-    string routeName;
-    string departureTime;
-    string arrivalTime;
-    string vehicleId;
-};
-
-function fetchAvailableTrips() returns TripInfo[]|error {
-    http:Response|error routesResponse = transportService->get("/transport/routes");
-
-    if routesResponse is http:Response {
-        if routesResponse.statusCode == 200 {
-            json|error routesJson = routesResponse.getJsonPayload();
-            if routesJson is json {
-                if routesJson is json[] {
-                    TripInfo[] allTrips = [];
-
-                    foreach json routeJson in routesJson {
-                        string|error routeId = routeJson.routeId.ensureType();
-                        string|error routeName = routeJson.name.ensureType();
-                        
-                        if routeId is string && routeName is string {
-                            http:Response|error tripsResponse = transportService->get(string`/transport/trips/route/${routeId}`);
-                            
-                            if tripsResponse is http:Response {
-                                if tripsResponse.statusCode == 200 {
-                                    json|error tripsJson = tripsResponse.getJsonPayload();
-                                    if tripsJson is json {
-                                        if tripsJson is json[] {
-                                            foreach json tripJson in tripsJson {
-                                                string|error tripId = tripJson.tripId.ensureType();
-                                                string|error departureTime = tripJson.departureTime.ensureType();
-                                                string|error arrivalTime = tripJson.arrivalTime.ensureType();
-                                                string|error vehicleId = tripJson.vehicleId.ensureType();
-                                                
-                                                // More lenient - use defaults if type cast fails
-                                                string tripIdStr = tripId is string ? tripId : "";
-                                                string departureTimeStr = departureTime is string ? departureTime : "Scheduled";
-                                                string arrivalTimeStr = arrivalTime is string ? arrivalTime : "Scheduled";
-                                                string vehicleIdStr = vehicleId is string ? vehicleId : "TBA";
-                                                
-                                                // Only require tripId to be valid
-                                                if tripIdStr != "" {
-                                                    TripInfo trip = {
-                                                        tripId: tripIdStr,
-                                                        routeName: routeName,
-                                                        departureTime: departureTimeStr,
-                                                        arrivalTime: arrivalTimeStr,
-                                                        vehicleId: vehicleIdStr
-                                                    };
-                                                    allTrips.push(trip);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+function handleViewNotifications(string userId) returns error? {
+    io:println("\n╔════════════════════════════════════════════╗");
+    io:println("║           🔔 Notifications                 ║");
+    io:println("╚════════════════════════════════════════════╝");
+    
+    io:println("\n⏳ Fetching your notifications...");
+    
+    http:Response|error notifResponse = notificationService->get(string`/notifications/${userId}`);
+    
+    if notifResponse is http:Response {
+        int statusCode = notifResponse.statusCode;
+        
+        if statusCode == 200 {
+            json|error responseJson = notifResponse.getJsonPayload();
+            if responseJson is json && responseJson is json[] {
+                if responseJson.length() > 0 {
+                    io:println("\n✅ Your Notifications:");
+                    io:println("═══════════════════════════════════════════════════════════");
+                    
+                    int count = 0;
+                    foreach json notif in responseJson {
+                        count = count + 1;
+                        if count > 10 {
+                            io:println(string`\n... and ${responseJson.length() - 10} more notifications`);
+                            break;
                         }
+                        
+                        string|error message = notif.message.ensureType();
+                        string|error notifType = notif.notificationType.ensureType();
+                        string|error status = notif.status.ensureType();
+                        
+                        string statusIcon = status is string && status == "unread" ? "🔴" : "✅";
+                        string typeIcon = getNotificationIcon(notifType is string ? notifType : "");
+                        
+                        io:println(string`${statusIcon} ${typeIcon} ${message is string ? message : "Notification"}`);
+                        io:println("───────────────────────────────────────────────────────────");
                     }
-                    return allTrips;
+                    io:println("═══════════════════════════════════════════════════════════");
                 } else {
-                    return error("Routes response is not an array");
+                    io:println("\n📭 No notifications yet.");
+                    io:println("💡 Notifications will appear here when you purchase tickets or receive updates!");
                 }
             } else {
-                return error("Invalid routes response format");
+                io:println("❌ Invalid response format");
             }
         } else {
-            return error(string`Failed to fetch routes (Status ${routesResponse.statusCode})`);
+            io:println("\n📭 No notifications available.");
         }
     } else {
-        return error(string`Error connecting to Transport Service: ${routesResponse.message()}`);
+        io:println("❌ Error connecting to Notification Service.");
+        io:println("💡 Make sure the service is running on http://localhost:9095");
+        io:println(string`Error details: ${notifResponse.message()}`);
     }
 }
