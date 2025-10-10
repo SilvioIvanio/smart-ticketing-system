@@ -88,7 +88,7 @@ graph TD
         CLI2["Admin CLI<br/>(Port N/A)"]
         CLI3["Validator App<br/>(Port N/A)"]
     end
-    
+
     subgraph MICROSERVICES["MICROSERVICES LAYER"]
         PS["Passenger Service<br/>:9090"]
         TS["Ticketing Service<br/>:9091"]
@@ -97,7 +97,7 @@ graph TD
         TRS["Transport Service<br/>:9094"]
         NS["Notification Service<br/>:9095"]
     end
-    
+
     subgraph INFRASTRUCTURE["INFRASTRUCTURE LAYER"]
         subgraph KAFKA["Apache Kafka<br/>:9092, :29092"]
             KT["Topics:<br/>• ticket.requests<br/>• payments.processed<br/>• schedule.updates<br/>• ticket.events"]
@@ -106,9 +106,10 @@ graph TD
             MC["Collections:<br/>• users<br/>• routes<br/>• trips<br/>• tickets<br/>• payments<br/>• disruptions"]
         end
     end
-    
+
     CLIENT --> MICROSERVICES
     MICROSERVICES --> INFRASTRUCTURE
+
 ```
 
 ### Microservices
@@ -180,14 +181,13 @@ Ensure you have the following installed:
 
 ```bash
 # Clone repository
-git clone https://github.com/SilvioIvanio/smart-ticketing-system.git
+git clone <https://github.com/SilvioIvanio/smart-ticketing-system.git>
+git checkout v2
 cd smart-ticketing-system
 
 ```
 
 ### 2. Launch Docker and verify the engine is running
-
-![image.png](attachment:3d861d8d-22e9-47aa-8413-cf097b2289a1:image.png)
 
 ### 3.Docker Compose
 
@@ -225,7 +225,7 @@ chmod +x test.sh
 ### Windows (PowerShell):
 
 ```powershell
-.\\test.ps1
+.\\\\test.ps1
 
 ```
 
