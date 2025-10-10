@@ -9,12 +9,18 @@ services:
       - "2181:2181"
     networks:
       - ticketing-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -28,6 +34,11 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks:
       - ticketing-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   mongodb:
     image: mongo:7.0
@@ -40,6 +51,11 @@ services:
       - mongodb-data:/data/db
     networks:
       - ticketing-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   passenger-service:
     image: eclipse-temurin:25-jre
@@ -54,10 +70,13 @@ services:
       java -jar passenger_service.jar 
       --b7a.config.file=/app/Config.toml
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - ticketing-network
     restart: unless-stopped
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
 
   ticketing-service:
     image: eclipse-temurin:25-jre
@@ -72,11 +91,15 @@ services:
       java -jar ticketing_service.jar 
       --b7a.config.file=/app/Config.toml
     depends_on:
-      - kafka
-      - mongodb
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - ticketing-network
     restart: unless-stopped
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
 
   payment-service:
     image: eclipse-temurin:25-jre
@@ -85,16 +108,21 @@ services:
     volumes:
       - ./services/payment-service/payment_service/target/bin:/app
       - ./services/payment-service/payment_service/Config.toml:/app/Config.toml
+    # NOTE: Payment service is a Kafka consumer only (no HTTP endpoint)
+    # No ports needed unless you add an HTTP listener
     command: >
-      java 
-      -jar payment_service.jar 
+      java -jar payment_service.jar 
       --b7a.config.file=/app/Config.toml
     depends_on:
-      - kafka
-      - mongodb
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - ticketing-network
     restart: unless-stopped
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
 
   transport-service:
     image: eclipse-temurin:25-jre
@@ -104,17 +132,20 @@ services:
       - ./services/transport-service/transport_service/target/bin:/app
       - ./services/transport-service/transport_service/Config.toml:/app/Config.toml
     ports:
-      - "9094:9092"
+      - "9094:9094"
     command: >
-      java 
-      -jar transport_service.jar 
+      java -jar transport_service.jar 
       --b7a.config.file=/app/Config.toml
     depends_on:
-      - kafka
-      - mongodb
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - ticketing-network
     restart: unless-stopped
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
 
   notification-service:
     image: eclipse-temurin:25-jre
@@ -123,15 +154,19 @@ services:
     volumes:
       - ./services/notification-service/notification_service/target/bin:/app
       - ./services/notification-service/notification_service/Config.toml:/app/Config.toml
+    # NOTE: Notification service is a Kafka consumer only (no HTTP endpoint)
+    # No ports needed unless you add an HTTP listener
     command: >
-      java 
-      -jar notification_service.jar 
+      java -jar notification_service.jar 
       --b7a.config.file=/app/Config.toml
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     networks:
       - ticketing-network
     restart: unless-stopped
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
 
   admin-service:
     image: eclipse-temurin:25-jre
@@ -143,15 +178,18 @@ services:
     ports:
       - "9093:9093"
     command: >
-      java 
-      -jar admin_service.jar 
+      java -jar admin_service.jar 
       --b7a.config.file=/app/Config.toml
     depends_on:
-      - kafka
-      - mongodb
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     networks:
       - ticketing-network
     restart: unless-stopped
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
 
 networks:
   ticketing-network:

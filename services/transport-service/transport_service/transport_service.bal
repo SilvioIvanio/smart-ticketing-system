@@ -17,7 +17,8 @@ kafka:Producer kafkaProducer = check new (kafkaBootstrap, {
     clientId: "transport-producer"
 });
 
-service /transport on new http:Listener(9092) {
+// FIXED: Changed port from 9092 to 9094
+service /transport on new http:Listener(9094) {
 
     // Create a new route
     resource function post routes(@http:Payload json routeData)
