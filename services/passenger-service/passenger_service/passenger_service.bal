@@ -14,7 +14,7 @@ mongodb:Client mongoClient = check new ({
 
 service /passenger on new http:Listener(9090) {
 
-    // FIXED: Now returns JSON with userId
+    // Register new user
     resource function post register(@http:Payload UserRegistration userData)
             returns json|http:Conflict|error {
 
@@ -49,7 +49,6 @@ service /passenger on new http:Listener(9090) {
 
         log:printInfo("User registered successfully: " + userData.email);
         
-        // FIXED: Return JSON with userId instead of just http:CREATED
         return {
             "userId": newUser.userId,
             "username": newUser.username,
@@ -58,6 +57,7 @@ service /passenger on new http:Listener(9090) {
         };
     }
 
+    // Login user
     resource function post login(@http:Payload UserLogin credentials)
             returns json|http:Unauthorized|error {
 
@@ -94,6 +94,7 @@ service /passenger on new http:Listener(9090) {
         };
     }
 
+    // Get user tickets
     resource function get tickets/[string userId]() returns Ticket[]|error {
 
         log:printInfo("Fetching tickets for user: " + userId);
@@ -108,6 +109,7 @@ service /passenger on new http:Listener(9090) {
         return userTickets;
     }
 
+    // Get user profile
     resource function get profile/[string userId]() returns User|http:NotFound|error {
 
         log:printInfo("Fetching profile for user: " + userId);
@@ -124,5 +126,33 @@ service /passenger on new http:Listener(9090) {
         }
 
         return foundUsers[0];
+    }
+
+    // ✅ Get all passengers (for notification broadcasting)
+    resource function get all() returns json[]|error {
+        log:printInfo("Fetching all passengers");
+        
+        mongodb:Database db = check mongoClient->getDatabase(dbName);
+        mongodb:Collection users = check db->getCollection("users");
+        
+        stream<User, error?> passengerStream = check users->find();
+        json[] passengers = [];
+        
+        check from User p in passengerStream
+            do {
+                passengers.push({
+                    userId: p.userId,
+                    username: p.username,
+                    email: p.email
+                });
+            };
+        
+        log:printInfo(string `Found ${passengers.length()} passengers`);
+        return passengers;
+    }
+
+    // Health check
+    resource function get health() returns string {
+        return "Passenger Service is running";
     }
 }

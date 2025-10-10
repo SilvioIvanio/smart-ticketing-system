@@ -17,7 +17,6 @@ kafka:Producer kafkaProducer = check new (kafkaBootstrap, {
     clientId: "transport-producer"
 });
 
-// FIXED: Changed port from 9092 to 9094
 service /transport on new http:Listener(9094) {
 
     // Create a new route
@@ -31,7 +30,6 @@ service /transport on new http:Listener(9094) {
 
         string routeId = uuid:createType1AsString();
 
-        // FIX: Properly convert JSON fields to their types
         string[] stopsArray = check (check routeData.stops).cloneWithType();
         json scheduleJson = check routeData.schedule;
         
@@ -67,6 +65,23 @@ service /transport on new http:Listener(9094) {
         return check from Route r in routeStream select r;
     }
 
+    // Get route by ID
+    resource function get routes/[string routeId]() returns Route|http:NotFound|error {
+        log:printInfo("Fetching route: " + routeId);
+        
+        mongodb:Database db = check mongoClient->getDatabase(dbName);
+        mongodb:Collection routes = check db->getCollection("routes");
+        
+        stream<Route, error?> routeStream = check routes->find({routeId: routeId});
+        Route[]? foundRoutes = check from Route r in routeStream select r;
+        
+        if foundRoutes is () || foundRoutes.length() == 0 {
+            return http:NOT_FOUND;
+        }
+        
+        return foundRoutes[0];
+    }
+
     // Create a trip
     resource function post trips(@http:Payload json tripData)
             returns json|error {
@@ -96,6 +111,32 @@ service /transport on new http:Listener(9094) {
             "tripId": tripId,
             "message": "Trip created successfully"
         };
+    }
+
+    // NEW: Get all trips
+    resource function get trips() returns Trip[]|error {
+        log:printInfo("Fetching all trips");
+
+        mongodb:Database db = check mongoClient->getDatabase(dbName);
+        mongodb:Collection trips = check db->getCollection("trips");
+
+        stream<Trip, error?> tripStream = check trips->find();
+        Trip[] allTrips = check from Trip t in tripStream select t;
+        
+        log:printInfo(string `Found ${allTrips.length()} total trips`);
+        return allTrips;
+    }
+
+    // Get trips for a route
+    resource function get trips/route/[string routeId]() returns Trip[]|error {
+
+        log:printInfo("Fetching trips for route: " + routeId);
+
+        mongodb:Database db = check mongoClient->getDatabase(dbName);
+        mongodb:Collection trips = check db->getCollection("trips");
+
+        stream<Trip, error?> tripStream = check trips->find({routeId: routeId});
+        return check from Trip t in tripStream select t;
     }
 
     // Update trip status
@@ -135,17 +176,5 @@ service /transport on new http:Listener(9094) {
             "success": true,
             "message": "Trip status updated"
         };
-    }
-
-    // Get trips for a route
-    resource function get trips/route/[string routeId]() returns Trip[]|error {
-
-        log:printInfo("Fetching trips for route: " + routeId);
-
-        mongodb:Database db = check mongoClient->getDatabase(dbName);
-        mongodb:Collection trips = check db->getCollection("trips");
-
-        stream<Trip, error?> tripStream = check trips->find({routeId: routeId});
-        return check from Trip t in tripStream select t;
     }
 }

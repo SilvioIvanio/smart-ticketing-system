@@ -14,10 +14,18 @@ string? loggedInEmail = ();
 // Type definitions
 type TripInfo record {
     string tripId;
+    string routeId;
     string routeName;
     string vehicleId;
     string departureTime;
     string arrivalTime;
+    string status;
+};
+
+type RouteInfo record {
+    string routeId;
+    string name;
+    string routeType;
 };
 
 public function main() returns error? {
@@ -285,35 +293,116 @@ function handleLogin() returns error? {
 }
 
 function fetchAvailableTrips() returns TripInfo[]|error {
+    io:println("DEBUG: Starting to fetch trips...");
+    
+    // First, fetch all routes to get route names
+    http:Response|error routesResponse = transportService->get("/transport/routes");
+    map<string> routeNames = {};
+    
+    if routesResponse is http:Response {
+        io:println(string `DEBUG: Routes response status: ${routesResponse.statusCode}`);
+        
+        if routesResponse.statusCode == 200 {
+            json|error routesJson = routesResponse.getJsonPayload();
+            if routesJson is json[] {
+                io:println(string `DEBUG: Found ${routesJson.length()} routes`);
+                foreach json route in routesJson {
+                    string|error routeId = route.routeId.ensureType();
+                    string|error routeName = route.name.ensureType();
+                    if routeId is string && routeName is string {
+                        routeNames[routeId] = routeName;
+                        io:println(string `DEBUG: Mapped route ${routeId} -> ${routeName}`);
+                    }
+                }
+            } else {
+                io:println("DEBUG: Routes response is not a JSON array");
+            }
+        } else {
+            io:println(string `DEBUG: Routes request failed with status ${routesResponse.statusCode}`);
+        }
+    } else {
+        io:println(string `DEBUG: Error fetching routes: ${routesResponse.message()}`);
+    }
+    
+    // Now fetch trips
+    io:println("DEBUG: Fetching trips...");
     http:Response|error tripsResponse = transportService->get("/transport/trips");
     
     if tripsResponse is http:Response {
+        io:println(string `DEBUG: Trips response status: ${tripsResponse.statusCode}`);
+        
         if tripsResponse.statusCode == 200 {
             json|error tripsJson = tripsResponse.getJsonPayload();
+            
             if tripsJson is json[] {
+                io:println(string `DEBUG: Found ${tripsJson.length()} trips`);
                 TripInfo[] trips = [];
+                
                 foreach json trip in tripsJson {
                     string|error tripId = trip.tripId.ensureType();
                     string|error routeId = trip.routeId.ensureType();
                     string|error vehicleId = trip.vehicleId.ensureType();
-                    string|error departureTime = trip.departureTime.ensureType();
-                    string|error arrivalTime = trip.arrivalTime.ensureType();
+                    string|error status = trip.status.ensureType();
                     
-                    if tripId is string && routeId is string && vehicleId is string && 
-                       departureTime is string && arrivalTime is string {
+                    io:println(string `DEBUG: Processing trip ${tripId is string ? tripId : "unknown"}`);
+                    
+                    // FIXED: Handle time as json (array format) and convert to string
+                    json|error departureTimeJson = trip.departureTime;
+                    json|error arrivalTimeJson = trip.arrivalTime;
+                    
+                    string departureTime = "N/A";
+                    string arrivalTime = "N/A";
+                    
+                    if departureTimeJson is json {
+                        departureTime = departureTimeJson.toJsonString();
+                    }
+                    
+                    if arrivalTimeJson is json {
+                        arrivalTime = arrivalTimeJson.toJsonString();
+                    }
+                    
+                    if tripId is string && routeId is string && vehicleId is string {
+                        
+                        string routeName = routeNames.hasKey(routeId) ? routeNames.get(routeId) : routeId;
+                        
                         trips.push({
                             tripId: tripId,
-                            routeName: routeId,
+                            routeId: routeId,
+                            routeName: routeName,
                             vehicleId: vehicleId,
                             departureTime: departureTime,
-                            arrivalTime: arrivalTime
+                            arrivalTime: arrivalTime,
+                            status: status is string ? status : "UNKNOWN"
                         });
+                        
+                        io:println(string `DEBUG: Added trip ${tripId} for route ${routeName}`);
+                    } else {
+                        io:println("DEBUG: Trip missing required fields");
                     }
                 }
+                
+                io:println(string `DEBUG: Returning ${trips.length()} trips`);
                 return trips;
+            } else {
+                io:println("DEBUG: Trips response is not a JSON array");
+                if tripsJson is json {
+                    io:println(string `DEBUG: Trips response: ${tripsJson.toJsonString()}`);
+                } else {
+                    io:println("DEBUG: Trips response is error");
+                }
+            }
+        } else {
+            io:println(string `DEBUG: Trips request failed with status ${tripsResponse.statusCode}`);
+            string|error errorPayload = tripsResponse.getTextPayload();
+            if errorPayload is string {
+                io:println(string `DEBUG: Error response: ${errorPayload}`);
             }
         }
+    } else {
+        io:println(string `DEBUG: Error fetching trips: ${tripsResponse.message()}`);
     }
+    
+    io:println("DEBUG: Returning empty array");
     return [];
 }
 
@@ -343,6 +432,7 @@ function handleBuyTicket(string userId) returns error? {
         io:println(string`      🚌 Vehicle: ${t.vehicleId}`);
         io:println(string`      🕐 Departure: ${t.departureTime}`);
         io:println(string`      🕑 Arrival: ${t.arrivalTime}`);
+        io:println(string`      📊 Status: ${t.status}`);
         io:println(string`      🆔 Trip ID: ${t.tripId}`);
         io:println("───────────────────────────────────────────────────────────");
     }
