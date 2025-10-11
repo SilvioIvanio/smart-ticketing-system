@@ -91,14 +91,14 @@ graph TD
     subgraph MICROSERVICES["MICROSERVICES LAYER"]
         PS["Passenger Service<br/>:9090"]
         TS["Ticketing Service<br/>:9091"]
-        PMS["Payment Service<br/>:9092"]
+        PMS["Payment Service<br/>(Port N/A)"]
         AS["Admin Service<br/>:9093"]
         TRS["Transport Service<br/>:9094"]
         NS["Notification Service<br/>:9095"]
     end
 
     subgraph INFRASTRUCTURE["INFRASTRUCTURE LAYER"]
-        subgraph KAFKA["Apache Kafka<br/>:9092, :29092"]
+        subgraph KAFKA["Apache Kafka<br/>:9092"]
             KT["Topics:<br/>• ticket.requests<br/>• payments.processed<br/>• schedule.updates<br/>• ticket.events"]
         end
         subgraph MONGO["MongoDB<br/>:27017"]
