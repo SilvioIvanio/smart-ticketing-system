@@ -86,7 +86,6 @@ graph TD
     subgraph CLIENT["CLIENT LAYER"]
         CLI1["Passenger CLI<br/>(Port N/A)"]
         CLI2["Admin CLI<br/>(Port N/A)"]
-        CLI3["Validator App<br/>(Port N/A)"]
     end
 
     subgraph MICROSERVICES["MICROSERVICES LAYER"]
