@@ -21,14 +21,6 @@ dependencies = [
 
 [[package]]
 org = "ballerina"
-name = "avro"
-version = "1.2.0"
-dependencies = [
-	{org = "ballerina", name = "jballerina.java"}
-]
-
-[[package]]
-org = "ballerina"
 name = "cache"
 version = "3.10.0"
 dependencies = [
@@ -115,6 +107,9 @@ version = "1.8.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "lang.value"}
+]
+modules = [
+	{org = "ballerina", packageName = "io", moduleName = "io"}
 ]
 
 [[package]]
@@ -214,15 +209,12 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "log"
-version = "2.13.0"
+version = "2.14.0"
 dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "lang.value"},
 	{org = "ballerina", name = "observe"}
-]
-modules = [
-	{org = "ballerina", packageName = "log", moduleName = "log"}
 ]
 
 [[package]]
@@ -268,6 +260,18 @@ dependencies = [
 
 [[package]]
 org = "ballerina"
+name = "regex"
+version = "1.3.2"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "lang.string"}
+]
+modules = [
+	{org = "ballerina", packageName = "regex", moduleName = "regex"}
+]
+
+[[package]]
+org = "ballerina"
 name = "task"
 version = "2.11.0"
 dependencies = [
@@ -282,9 +286,6 @@ name = "time"
 version = "2.7.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
-]
-modules = [
-	{org = "ballerina", packageName = "time", moduleName = "time"}
 ]
 
 [[package]]
@@ -305,9 +306,6 @@ dependencies = [
 	{org = "ballerina", name = "lang.int"},
 	{org = "ballerina", name = "time"}
 ]
-modules = [
-	{org = "ballerina", packageName = "uuid", moduleName = "uuid"}
-]
 
 [[package]]
 org = "ballerinai"
@@ -322,69 +320,16 @@ modules = [
 ]
 
 [[package]]
-org = "ballerinax"
-name = "confluent.cavroserdes"
-version = "1.0.2"
-dependencies = [
-	{org = "ballerina", name = "avro"},
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerinai", name = "observe"},
-	{org = "ballerinax", name = "confluent.cregistry"}
-]
-
-[[package]]
-org = "ballerinax"
-name = "confluent.cregistry"
-version = "0.4.1"
-dependencies = [
-	{org = "ballerina", name = "jballerina.java"}
-]
-
-[[package]]
-org = "ballerinax"
-name = "kafka"
-version = "4.6.1"
-dependencies = [
-	{org = "ballerina", name = "crypto"},
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerina", name = "time"},
-	{org = "ballerina", name = "uuid"},
-	{org = "ballerinai", name = "observe"},
-	{org = "ballerinax", name = "confluent.cavroserdes"},
-	{org = "ballerinax", name = "confluent.cregistry"}
-]
-modules = [
-	{org = "ballerinax", packageName = "kafka", moduleName = "kafka"}
-]
-
-[[package]]
-org = "ballerinax"
-name = "mongodb"
-version = "5.2.2"
-dependencies = [
-	{org = "ballerina", name = "crypto"},
-	{org = "ballerina", name = "jballerina.java"},
-	{org = "ballerina", name = "log"},
-	{org = "ballerina", name = "time"}
-]
-modules = [
-	{org = "ballerinax", packageName = "mongodb", moduleName = "mongodb"}
-]
-
-[[package]]
-org = "silvi"
-name = "ticketing_service"
+org = "silvioivanio"
+name = "admin_cli"
 version = "0.1.0"
 dependencies = [
 	{org = "ballerina", name = "http"},
-	{org = "ballerina", name = "log"},
-	{org = "ballerina", name = "time"},
-	{org = "ballerina", name = "uuid"},
-	{org = "ballerinai", name = "observe"},
-	{org = "ballerinax", name = "kafka"},
-	{org = "ballerinax", name = "mongodb"}
+	{org = "ballerina", name = "io"},
+	{org = "ballerina", name = "regex"},
+	{org = "ballerinai", name = "observe"}
 ]
 modules = [
-	{org = "silvi", packageName = "ticketing_service", moduleName = "ticketing_service"}
+	{org = "silvioivanio", packageName = "admin_cli", moduleName = "admin_cli"}
 ]
 

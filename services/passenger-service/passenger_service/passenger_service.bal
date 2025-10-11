@@ -3,30 +3,23 @@ import ballerina/uuid;
 import ballerina/crypto;
 import ballerina/time;
 import ballerina/log;
-
-// MongoDB imports
 import ballerinax/mongodb;
 
-// Configuration values (from Config.toml)
 configurable string mongoHost = ?;
 configurable string dbName = ?;
 
-// Create MongoDB client
 mongodb:Client mongoClient = check new ({
     connection: mongoHost
 });
 
-// Main HTTP service running on port 9090
 service /passenger on new http:Listener(9090) {
 
-    // Endpoint: POST /passenger/register
-    // Purpose: Create a new user account
+    // Register new user
     resource function post register(@http:Payload UserRegistration userData)
-            returns http:Created|http:Conflict|error {
+            returns json|http:Conflict|error {
 
         log:printInfo("Registration request received for: " + userData.email);
 
-        // Connect to database
         mongodb:Database db = check mongoClient->getDatabase(dbName);
         mongodb:Collection users = check db->getCollection("users");
 
@@ -39,11 +32,9 @@ service /passenger on new http:Listener(9090) {
             return http:CONFLICT;
         }
 
-        // Hash the password for security
         byte[] hash = crypto:hashSha256(userData.password.toBytes());
         string passwordHash = hash.toBase16();
 
-        // Create new user record
         User newUser = {
             userId: uuid:createType1AsString(),
             username: userData.username,
@@ -54,25 +45,27 @@ service /passenger on new http:Listener(9090) {
             updatedAt: time:utcNow()
         };
 
-        // Save to database
         check users->insertOne(newUser);
 
         log:printInfo("User registered successfully: " + userData.email);
-        return http:CREATED;
+        
+        return {
+            "userId": newUser.userId,
+            "username": newUser.username,
+            "email": newUser.email,
+            "message": "User registered successfully"
+        };
     }
 
-    // Endpoint: POST /passenger/login
-    // Purpose: Authenticate user and return user info
+    // Login user
     resource function post login(@http:Payload UserLogin credentials)
             returns json|http:Unauthorized|error {
 
         log:printInfo("Login attempt for: " + credentials.email);
 
-        // Connect to database
         mongodb:Database db = check mongoClient->getDatabase(dbName);
         mongodb:Collection users = check db->getCollection("users");
 
-        // Find user by email
         stream<User, error?> userStream = check users->find({email: credentials.email});
         User[]? foundUsers = check from User u in userStream select u;
 
@@ -83,7 +76,6 @@ service /passenger on new http:Listener(9090) {
 
         User user = foundUsers[0];
 
-        // Verify password
         byte[] hash = crypto:hashSha256(credentials.password.toBytes());
         string passwordHash = hash.toBase16();
 
@@ -94,7 +86,6 @@ service /passenger on new http:Listener(9090) {
 
         log:printInfo("Login successful: " + credentials.email);
 
-        // Return user information (without password)
         return {
             "userId": user.userId,
             "username": user.username,
@@ -103,8 +94,7 @@ service /passenger on new http:Listener(9090) {
         };
     }
 
-    // Endpoint: GET /passenger/tickets/{userId}
-    // Purpose: Get all tickets for a user
+    // Get user tickets
     resource function get tickets/[string userId]() returns Ticket[]|error {
 
         log:printInfo("Fetching tickets for user: " + userId);
@@ -119,8 +109,7 @@ service /passenger on new http:Listener(9090) {
         return userTickets;
     }
 
-    // Endpoint: GET /passenger/profile/{userId}
-    // Purpose: Get user profile information
+    // Get user profile
     resource function get profile/[string userId]() returns User|http:NotFound|error {
 
         log:printInfo("Fetching profile for user: " + userId);
@@ -137,5 +126,33 @@ service /passenger on new http:Listener(9090) {
         }
 
         return foundUsers[0];
+    }
+
+    // ✅ Get all passengers (for notification broadcasting)
+    resource function get all() returns json[]|error {
+        log:printInfo("Fetching all passengers");
+        
+        mongodb:Database db = check mongoClient->getDatabase(dbName);
+        mongodb:Collection users = check db->getCollection("users");
+        
+        stream<User, error?> passengerStream = check users->find();
+        json[] passengers = [];
+        
+        check from User p in passengerStream
+            do {
+                passengers.push({
+                    userId: p.userId,
+                    username: p.username,
+                    email: p.email
+                });
+            };
+        
+        log:printInfo(string `Found ${passengers.length()} passengers`);
+        return passengers;
+    }
+
+    // Health check
+    resource function get health() returns string {
+        return "Passenger Service is running";
     }
 }

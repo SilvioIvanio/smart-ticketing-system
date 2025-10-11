@@ -64,17 +64,21 @@ service /admin on new http:Listener(9093) {
         };
     }
 
-    // Publish service disruption
-    resource function post disruptions(@http:Payload json disruptionData)
-            returns json|error {
+    // Publish service disruption - FIXED VERSION
+    resource function post disruptions(@http:Payload json disruptionData) returns json|error {
 
         log:printInfo("Publishing service disruption");
 
+        string routeId = check disruptionData.routeId;
+        string message = check disruptionData.message;
+        string severity = check disruptionData.severity;
+
+        // 1. Publish to Kafka for Transport Service and other consumers
         json notification = {
             "type": "DISRUPTION",
-            "routeId": check disruptionData.routeId,
-            "message": check disruptionData.message,
-            "severity": check disruptionData.severity,
+            "routeId": routeId,
+            "message": message,
+            "severity": severity,
             "timestamp": time:utcNow()
         };
 
@@ -83,11 +87,39 @@ service /admin on new http:Listener(9093) {
             value: notification.toJsonString().toBytes()
         });
 
-        log:printInfo("Disruption published");
+        log:printInfo("Disruption published to Kafka");
+
+        // 2. ✅ NEW: Call Notification Service directly to broadcast to all passengers
+        http:Client notificationClient = check new ("http://notification-service:9095");
+        
+        json disruptionPayload = {
+            "routeId": routeId,
+            "message": message,
+            "severity": severity
+        };
+        
+        http:Response|error notifResponse = notificationClient->post("/disruptions", disruptionPayload);
+        
+        if notifResponse is http:Response {
+            if notifResponse.statusCode == 200 {
+                json|error notifResult = notifResponse.getJsonPayload();
+                if notifResult is json {
+                    log:printInfo(string `Disruption notifications sent to passengers: ${notifResult.toJsonString()}`);
+                }
+            } else {
+                log:printWarn(string `Notification service returned status: ${notifResponse.statusCode}`);
+            }
+        } else {
+            log:printError(string `Error calling notification service: ${notifResponse.message()}`);
+        }
+
+        log:printInfo("Disruption published successfully");
 
         return {
             "success": true,
-            "message": "Disruption notification sent"
+            "message": "Disruption notification sent to all passengers",
+            "routeId": routeId,
+            "severity": severity
         };
     }
 
